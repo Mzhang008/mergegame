@@ -1,0 +1,17 @@
+Sakura Merge - Economy Simulation Summary (v0.1)
+====================================================
+Sim window:     30 days
+Sessions/day:   2.5
+Energy/session: 90
+Quests/session: 2.5
+
+--- Player state at D30 ---
+  Level:            17 / 30
+  XP total:         28,666
+  Coin balance:     5,559
+  Restoration step: 8 / 8
+
+--- Validation verdicts ---
+  [PASS] MVP completed on day 26 (target 21-30)
+  [PASS] Level 17 at D30 (target 12-18)
+  [PASS] Coin balance 5,559 (target 1k-8k buffer)

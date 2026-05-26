@@ -1,4 +1,4 @@
-# Hidden Sakura — Game Design Document (MVP Soft Launch)
+# Sakura Merge — Game Design Document (MVP Soft Launch)
 
 > **Genre**: Casual Merge-2 / Merge-3
 > **Platforms**: iOS, Android (portrait, F2P)
@@ -394,4 +394,4 @@ TAP generator -> SPAWN base item -> MERGE pairs -> COMPLETE quest
 - Localization budget for cultural-context dialogue
 - Influencer/UA strategy for soft launch markets
 - Decision: in-house art vs. art outsource studio
-- Legal: trademark search on "Hidden Sakura" working title
+- Legal: trademark search on "Sakura Merge" working title
