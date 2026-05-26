@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sakura Merge — Prototype v0.1</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <header class="stats">
+    <div class="stat">
+      <div class="stat-label">Energy</div>
+      <div class="stat-val"><span id="energy">120</span><span class="stat-max">/120</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Coins</div>
+      <div class="stat-val" id="coins">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">XP</div>
+      <div class="stat-val" id="xp">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Level</div>
+      <div class="stat-val" id="level">1</div>
+    </div>
+  </header>
+
+  <div class="quest-panel" id="quest">
+    <div class="quest-info">
+      <div class="quest-label">Quest</div>
+      <div class="quest-text" id="quest-text">Deliver a Tier-3 Blooming Branch</div>
+      <div class="quest-reward" id="quest-reward">+15 coins, +25 XP</div>
+    </div>
+    <button class="quest-deliver" id="quest-deliver">Deliver</button>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div class="controls">
+    <button class="btn-primary" id="generator">
+      <span class="gen-icon">🌳</span>
+      <span class="gen-label">Sakura Tree</span>
+      <span class="gen-cost">-1 ⚡</span>
+    </button>
+    <button class="btn-secondary" id="reset" title="Reset">↺</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <footer>
+    Sakura Merge · Prototype v0.1<br>
+    <span class="hint">Tap generator to spawn · Tap item to select · Tap matching tier to merge</span>
+  </footer>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
