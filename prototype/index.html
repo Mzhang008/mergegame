@@ -36,6 +36,23 @@
     <button class="quest-deliver" id="quest-deliver">Deliver</button>
   </div>
 
+  <div class="rest-panel" id="restoration">
+    <div class="rest-row rest-top">
+      <div class="rest-meta">
+        <div class="rest-label">Restoration · Step <span id="step-num">1</span>/4</div>
+        <div class="rest-name" id="step-name">Clear the path</div>
+      </div>
+      <div class="rest-art" id="village-art">🪨 🌿 🪨</div>
+    </div>
+    <div class="rest-row rest-bottom">
+      <div class="sockets" id="sockets"></div>
+      <button class="rest-complete" id="step-complete" disabled>
+        <span class="rest-cost"><span id="step-cost">30</span> 🪙</span>
+        <span class="rest-action">Restore</span>
+      </button>
+    </div>
+  </div>
+
   <div class="board" id="board"></div>
 
   <div class="controls">
@@ -49,8 +66,8 @@
 
   <div class="toast" id="toast"></div>
   <footer>
-    Sakura Merge · Prototype v0.1<br>
-    <span class="hint">Tap generator to spawn · Tap item to select · Tap matching tier to merge</span>
+    Sakura Merge · Prototype v0.2<br>
+    <span class="hint">Drag items to merge or deposit into restoration sockets</span>
   </footer>
 </div>
 
