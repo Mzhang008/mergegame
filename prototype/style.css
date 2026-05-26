@@ -8,6 +8,9 @@
   --accent: #d9618a;
   --accent-dark: #b04772;
   --accent-light: #ffd1e0;
+  --sushi: #e89544;
+  --sushi-dark: #c47220;
+  --sushi-light: #fde2c4;
   --text: #4a2c3a;
   --text-muted: #9a7280;
   --selected: #ffb84d;
@@ -269,6 +272,12 @@ body {
   letter-spacing: 0.3px;
   pointer-events: none;
 }
+.cell.chain-sakura .tier-badge { background: rgba(176, 71, 114, 0.85); }
+.cell.chain-sushi .tier-badge { background: rgba(196, 114, 32, 0.85); }
+.socket.chain-sakura { border-color: var(--accent); }
+.socket.chain-sushi { border-color: var(--sushi); }
+.socket.empty.chain-sakura .socket-hint { color: var(--accent); }
+.socket.empty.chain-sushi .socket-hint { color: var(--sushi); }
 .cell.tier-7 .item {
   filter: drop-shadow(0 0 6px var(--gold));
   animation: glow 2.5s ease-in-out infinite;
@@ -288,45 +297,69 @@ body {
   30% { transform: scale(1.4); }
   100% { transform: scale(1); }
 }
-.cell.spawned .item { animation: spawn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.cell.spawned .item {
+  animation: spawn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-fill-mode: backwards;
+}
 .cell.merged .item { animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
 /* Controls */
 .controls {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  align-items: stretch;
 }
-.btn-primary {
+.generators {
   flex: 1;
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-  color: white;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.btn-gen {
+  flex: 1;
   border: none;
   border-radius: 14px;
-  padding: 14px 16px;
-  font-size: 14px;
-  font-weight: 700;
+  padding: 10px 10px;
+  color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
   transition: transform 0.1s, box-shadow 0.15s;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
-.btn-primary:active { transform: scale(0.97); }
-.btn-primary:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  box-shadow: none;
+.btn-gen.chain-sakura {
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
 }
-.gen-icon { font-size: 20px; }
-.gen-label { flex: 1; text-align: left; }
-.gen-cost {
-  background: rgba(0, 0, 0, 0.15);
-  padding: 3px 8px;
-  border-radius: 8px;
+.btn-gen.chain-sushi {
+  background: linear-gradient(135deg, var(--sushi), var(--sushi-dark));
+}
+.btn-gen:active { transform: scale(0.96); }
+.btn-gen:disabled { background: #bbb; cursor: not-allowed; box-shadow: none; opacity: 0.7; }
+.btn-gen .gen-icon { font-size: 22px; flex-shrink: 0; }
+.btn-gen .gen-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+.btn-gen .gen-label {
   font-size: 12px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.btn-gen .gen-cost {
+  font-size: 10px;
+  opacity: 0.92;
   font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
 }
 
 .btn-secondary {
@@ -334,13 +367,15 @@ body {
   color: var(--text-muted);
   border: none;
   border-radius: 14px;
-  width: 48px;
-  font-size: 20px;
+  width: 44px;
+  font-size: 18px;
   cursor: pointer;
   box-shadow: var(--shadow);
   transition: transform 0.1s;
+  flex-shrink: 0;
 }
 .btn-secondary:active { transform: scale(0.95); }
+.btn-secondary.muted { opacity: 0.5; }
 
 /* Toast */
 .toast {
@@ -392,4 +427,39 @@ body.low-energy .stat:first-child .stat-val { color: #c44; }
 }
 .drag-ghost.tier-7 {
   filter: drop-shadow(0 0 10px var(--gold)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
+}
+.drag-ghost.snap-back {
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              top 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s ease-out,
+              transform 0.25s ease-out;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.7);
+}
+
+/* Level-up particles */
+.particle {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 999;
+  transform: translate(-50%, -50%);
+  animation: particle-fly 0.9s cubic-bezier(0.2, 0.6, 0.4, 1) forwards;
+  box-shadow: 0 0 6px currentColor;
+}
+@keyframes particle-fly {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  20% {
+    transform: translate(calc(-50% + var(--dx, 0px) * 0.3), calc(-50% + var(--dy, 0px) * 0.3)) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px) + 30px)) scale(0.2);
+    opacity: 0;
+  }
 }

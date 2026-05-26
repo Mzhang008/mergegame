@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Sakura Merge — Prototype v0.1</title>
+<title>Sakura Merge — Prototype v0.3</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,7 +30,7 @@
   <div class="quest-panel" id="quest">
     <div class="quest-info">
       <div class="quest-label">Quest</div>
-      <div class="quest-text" id="quest-text">Deliver a Tier-3 Blooming Branch</div>
+      <div class="quest-text" id="quest-text">Deliver a Blooming Branch</div>
       <div class="quest-reward" id="quest-reward">+15 coins, +25 XP</div>
     </div>
     <button class="quest-deliver" id="quest-deliver">Deliver</button>
@@ -56,18 +56,30 @@
   <div class="board" id="board"></div>
 
   <div class="controls">
-    <button class="btn-primary" id="generator">
-      <span class="gen-icon">🌳</span>
-      <span class="gen-label">Sakura Tree</span>
-      <span class="gen-cost">-1 ⚡</span>
-    </button>
+    <div class="generators">
+      <button class="btn-gen chain-sakura" id="gen-sakura">
+        <span class="gen-icon">🌳</span>
+        <div class="gen-info">
+          <span class="gen-label">Sakura Tree</span>
+          <span class="gen-cost">−1 ⚡</span>
+        </div>
+      </button>
+      <button class="btn-gen chain-sushi" id="gen-sushi">
+        <span class="gen-icon">🍚</span>
+        <div class="gen-info">
+          <span class="gen-label">Rice Sack</span>
+          <span class="gen-cost">−1 ⚡</span>
+        </div>
+      </button>
+    </div>
+    <button class="btn-secondary" id="audio-toggle" title="Toggle sound">🔊</button>
     <button class="btn-secondary" id="reset" title="Reset">↺</button>
   </div>
 
   <div class="toast" id="toast"></div>
   <footer>
-    Sakura Merge · Prototype v0.2<br>
-    <span class="hint">Drag items to merge or deposit into restoration sockets</span>
+    Sakura Merge · Prototype v0.3<br>
+    <span class="hint">Drag items to merge (same chain + same tier) or deposit into sockets</span>
   </footer>
 </div>
 
