@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Sakura Merge — Prototype v0.3</title>
+<title>Sakura Merge — Prototype v0.4</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -39,7 +39,7 @@
   <div class="rest-panel" id="restoration">
     <div class="rest-row rest-top">
       <div class="rest-meta">
-        <div class="rest-label">Restoration · Step <span id="step-num">1</span>/4</div>
+        <div class="rest-label">Restoration · Step <span id="step-num">1</span>/<span id="step-total">5</span></div>
         <div class="rest-name" id="step-name">Clear the path</div>
       </div>
       <div class="rest-art" id="village-art">🪨 🌿 🪨</div>
@@ -59,17 +59,18 @@
     <div class="generators">
       <button class="btn-gen chain-sakura" id="gen-sakura">
         <span class="gen-icon">🌳</span>
-        <div class="gen-info">
-          <span class="gen-label">Sakura Tree</span>
-          <span class="gen-cost">−1 ⚡</span>
-        </div>
+        <span class="gen-label">Sakura</span>
+        <span class="gen-cost">−1 ⚡</span>
       </button>
       <button class="btn-gen chain-sushi" id="gen-sushi">
         <span class="gen-icon">🍚</span>
-        <div class="gen-info">
-          <span class="gen-label">Rice Sack</span>
-          <span class="gen-cost">−1 ⚡</span>
-        </div>
+        <span class="gen-label">Rice</span>
+        <span class="gen-cost">−1 ⚡</span>
+      </button>
+      <button class="btn-gen chain-lantern" id="gen-lantern">
+        <span class="gen-icon">🏮</span>
+        <span class="gen-label">Paper</span>
+        <span class="gen-cost">−1 ⚡</span>
       </button>
     </div>
     <button class="btn-secondary" id="audio-toggle" title="Toggle sound">🔊</button>
@@ -78,9 +79,20 @@
 
   <div class="toast" id="toast"></div>
   <footer>
-    Sakura Merge · Prototype v0.3<br>
-    <span class="hint">Drag items to merge (same chain + same tier) or deposit into sockets</span>
+    Sakura Merge · Prototype v0.4<br>
+    <span class="hint">Drag to merge · Auto-saves to your browser · Energy regenerates while you're away</span>
   </footer>
+</div>
+
+<div class="dialogue-overlay hidden" id="dialogue">
+  <div class="dialogue-bubble">
+    <div class="dialogue-portrait">🎎</div>
+    <div class="dialogue-body">
+      <div class="dialogue-name">Hana</div>
+      <div class="dialogue-text" id="dialogue-text"></div>
+      <button class="dialogue-next" id="dialogue-next">Continue ▶</button>
+    </div>
+  </div>
 </div>
 
 <script src="game.js"></script>

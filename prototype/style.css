@@ -11,6 +11,9 @@
   --sushi: #e89544;
   --sushi-dark: #c47220;
   --sushi-light: #fde2c4;
+  --lantern: #d63d2e;
+  --lantern-dark: #a82d20;
+  --lantern-light: #fad8d0;
   --text: #4a2c3a;
   --text-muted: #9a7280;
   --selected: #ffb84d;
@@ -274,10 +277,13 @@ body {
 }
 .cell.chain-sakura .tier-badge { background: rgba(176, 71, 114, 0.85); }
 .cell.chain-sushi .tier-badge { background: rgba(196, 114, 32, 0.85); }
+.cell.chain-lantern .tier-badge { background: rgba(168, 45, 32, 0.85); }
 .socket.chain-sakura { border-color: var(--accent); }
 .socket.chain-sushi { border-color: var(--sushi); }
+.socket.chain-lantern { border-color: var(--lantern); }
 .socket.empty.chain-sakura .socket-hint { color: var(--accent); }
 .socket.empty.chain-sushi .socket-hint { color: var(--sushi); }
+.socket.empty.chain-lantern .socket-hint { color: var(--lantern); }
 .cell.tier-7 .item {
   filter: drop-shadow(0 0 6px var(--gold));
   animation: glow 2.5s ease-in-out infinite;
@@ -319,12 +325,14 @@ body {
   flex: 1;
   border: none;
   border-radius: 14px;
-  padding: 10px 10px;
+  padding: 8px 4px;
   color: white;
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 1px;
   transition: transform 0.1s, box-shadow 0.15s;
   box-shadow: var(--shadow);
   min-width: 0;
@@ -335,31 +343,21 @@ body {
 .btn-gen.chain-sushi {
   background: linear-gradient(135deg, var(--sushi), var(--sushi-dark));
 }
-.btn-gen:active { transform: scale(0.96); }
-.btn-gen:disabled { background: #bbb; cursor: not-allowed; box-shadow: none; opacity: 0.7; }
-.btn-gen .gen-icon { font-size: 22px; flex-shrink: 0; }
-.btn-gen .gen-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  flex: 1;
-  min-width: 0;
+.btn-gen.chain-lantern {
+  background: linear-gradient(135deg, var(--lantern), var(--lantern-dark));
 }
+.btn-gen:active { transform: scale(0.95); }
+.btn-gen:disabled { background: #bbb; cursor: not-allowed; box-shadow: none; opacity: 0.7; }
+.btn-gen .gen-icon { font-size: 22px; line-height: 1; }
 .btn-gen .gen-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  letter-spacing: 0.2px;
 }
 .btn-gen .gen-cost {
-  font-size: 10px;
+  font-size: 9px;
   opacity: 0.92;
   font-weight: 600;
-  letter-spacing: 0.3px;
-  margin-top: 2px;
 }
 
 .btn-secondary {
@@ -463,3 +461,83 @@ body.low-energy .stat:first-child .stat-val { color: #c44; }
     opacity: 0;
   }
 }
+
+/* Dialogue overlay (Hana) */
+.dialogue-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(40, 20, 30, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  z-index: 200;
+  animation: dlg-fade 0.3s ease-out;
+  cursor: pointer;
+}
+.dialogue-overlay.hidden { display: none; }
+@keyframes dlg-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.dialogue-bubble {
+  background: white;
+  border-radius: 18px 18px 6px 18px;
+  padding: 14px 16px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.35);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  position: relative;
+  margin-bottom: 80px;
+  cursor: default;
+  animation: dlg-slide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes dlg-slide {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.dialogue-portrait {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffe4ed, #fdd0e0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  border: 3px solid var(--accent);
+  box-shadow: 0 2px 10px rgba(217, 97, 138, 0.4);
+}
+.dialogue-body { flex: 1; min-width: 0; }
+.dialogue-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.dialogue-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.dialogue-next {
+  margin-top: 10px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: block;
+  margin-left: auto;
+  transition: transform 0.1s, background 0.15s;
+}
+.dialogue-next:active { transform: scale(0.96); background: var(--accent-dark); }

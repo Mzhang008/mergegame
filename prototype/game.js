@@ -1,5 +1,6 @@
-// Sakura Merge - Prototype v0.3
-// Two chains (Sakura + Sushi), Web Audio SFX, snap-back, particles, staggered spawns.
+// Sakura Merge - Prototype v0.4
+// Three chains (Sakura/Sushi/Lantern), localStorage persistence,
+// offline energy regen, Hana intro + per-step dialogue.
 
 const CONFIG = {
   rows: 9,
@@ -14,6 +15,8 @@ const CONFIG = {
   xpCurveBase: 100,
   xpCurveExp: 1.3,
   spawnStaggerMs: 80,
+  storageKey: 'sakuraMerge_save',
+  storageVersion: 4,
 };
 
 const SAKURA_CHAIN = [
@@ -38,7 +41,19 @@ const SUSHI_CHAIN = [
   { emoji: '🍶', name: 'Imperial Feast', size: 46 },
 ];
 
-const CHAINS = { sakura: SAKURA_CHAIN, sushi: SUSHI_CHAIN };
+const LANTERN_CHAIN = [
+  null,
+  { emoji: '📜', name: 'Paper Scrap',      size: 18 },
+  { emoji: '📃', name: 'Folded Paper',     size: 22 },
+  { emoji: '🎴', name: 'Painted Paper',    size: 26 },
+  { emoji: '🏮', name: 'Small Lantern',    size: 30 },
+  { emoji: '🪔', name: 'Lit Lantern',      size: 34 },
+  { emoji: '🎐', name: 'Floating Lantern', size: 40 },
+  { emoji: '🌟', name: 'Spirit Lantern',   size: 46 },
+];
+
+const CHAINS = { sakura: SAKURA_CHAIN, sushi: SUSHI_CHAIN, lantern: LANTERN_CHAIN };
+const CHAIN_NAMES = Object.keys(CHAINS);
 function getItem(chain, tier) { return CHAINS[chain][tier]; }
 
 const QUEST_REWARDS = {
@@ -49,6 +64,8 @@ const QUEST_REWARDS = {
   6: { coins: 230,  xp: 320 },
   7: { coins: 600,  xp: 700 },
 };
+
+const SOCKET_HINT_ICON = { sakura: '🌸', sushi: '🍙', lantern: '🏮' };
 
 const RESTORATION_STEPS = [
   {
@@ -67,19 +84,59 @@ const RESTORATION_STEPS = [
     art: '🌸 ⛩️ 🍙',
   },
   {
+    name: 'Light the lanterns',
+    sockets: [{ chain: 'lantern', tier: 4 }],
+    coins: 200,
+    art: '🌸 🏮 ⛩️ 🏮 🌸',
+  },
+  {
     name: 'Open the tea house',
     sockets: [{ chain: 'sushi', tier: 4 }],
-    coins: 300,
-    art: '🌸 🍣 ⛩️ 🌸',
+    coins: 350,
+    art: '🌸 🍣 ⛩️ 🏮 🌸',
   },
   {
     name: 'Awaken the Spirit Tree',
-    sockets: [{ chain: 'sakura', tier: 5 }],
-    coins: 600,
+    sockets: [
+      { chain: 'sakura',  tier: 5 },
+      { chain: 'lantern', tier: 5 },
+    ],
+    coins: 700,
     art: '🌟 🌲 ⛩️ 🌲 🌟',
   },
 ];
 const VILLAGE_ART_INITIAL = '🪨 🌿 🪨';
+
+const HANA_INTRO = [
+  "...You came. The torii gate opened for you.",
+  "I am Hana, last apprentice Miko of this village. Long ago the spirits forgot the way home, and the village faded.",
+  "Help me restore it. The Sakura Tree below will give you petals to gather.",
+  "Drag two of the same kind together — they merge into something greater. ✨",
+];
+
+const HANA_AFTER_STEP = {
+  0: [
+    "The path is clear! I can already feel the wind change.",
+    "Welcome the spirits next — they remember the taste of rice. The Rice Sack will help you cook offerings.",
+  ],
+  1: [
+    "...The shrine bells stirred. They heard us.",
+    "Now we need light. Paper lanterns guided spirits home in the old days — the Paper Pile will let us fold new ones.",
+  ],
+  2: [
+    "The lanterns glow once more. I had forgotten that color.",
+    "The tea house is next. We will need a proper Maki Roll for the table.",
+  ],
+  3: [
+    "The aroma drifts through the trees. They are coming back, all of them.",
+    "One last thing — the Spirit Tree at the village heart. It needs sakura petals AND lantern light to wake.",
+  ],
+  4: [
+    "...",
+    "It blooms. After so long, it blooms.",
+    "Thank you, traveler. The village is whole, and you are part of it now. 🌸",
+  ],
+};
 
 const state = {
   energy: CONFIG.energyStart,
@@ -96,6 +153,7 @@ const state = {
   spawnOrder: [],
   mergedCell: null,
   audioOn: true,
+  hasSeenIntro: false,
 };
 
 const el = {
@@ -108,6 +166,7 @@ const el = {
   questReward: document.getElementById('quest-reward'),
   questDeliver: document.getElementById('quest-deliver'),
   stepNum: document.getElementById('step-num'),
+  stepTotal: document.getElementById('step-total'),
   stepName: document.getElementById('step-name'),
   stepCost: document.getElementById('step-cost'),
   stepComplete: document.getElementById('step-complete'),
@@ -115,20 +174,86 @@ const el = {
   villageArt: document.getElementById('village-art'),
   genSakura: document.getElementById('gen-sakura'),
   genSushi: document.getElementById('gen-sushi'),
+  genLantern: document.getElementById('gen-lantern'),
   audioToggle: document.getElementById('audio-toggle'),
   reset: document.getElementById('reset'),
   toast: document.getElementById('toast'),
+  dialogue: document.getElementById('dialogue'),
+  dialogueText: document.getElementById('dialogue-text'),
+  dialogueNext: document.getElementById('dialogue-next'),
 };
 
-// ---- Audio (Web Audio API, no assets) ----
+// ---- Persistence ----
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function saveState() {
+  try {
+    localStorage.setItem(CONFIG.storageKey, JSON.stringify({
+      version: CONFIG.storageVersion,
+      ts: Date.now(),
+      energy: state.energy,
+      coins: state.coins,
+      xp: state.xp,
+      level: state.level,
+      board: state.board,
+      questChain: state.questChain,
+      questTier: state.questTier,
+      restorationStep: state.restorationStep,
+      restorationSockets: state.restorationSockets,
+      audioOn: state.audioOn,
+      hasSeenIntro: state.hasSeenIntro,
+    }));
+  } catch (e) { /* storage full or disabled - skip */ }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(CONFIG.storageKey);
+    if (!raw) return false;
+    const snap = JSON.parse(raw);
+    if (snap.version !== CONFIG.storageVersion) return false;
+
+    state.energy = clamp(snap.energy ?? CONFIG.energyMax, 0, CONFIG.energyMax);
+    state.coins = snap.coins || 0;
+    state.xp = snap.xp || 0;
+    state.level = snap.level || 1;
+    state.board = (snap.board || []).map(item => {
+      if (!item || !CHAINS[item.chain]) return null;
+      if (item.tier < 1 || item.tier > CONFIG.maxTier) return null;
+      return { chain: item.chain, tier: item.tier };
+    });
+    while (state.board.length < CONFIG.rows * CONFIG.cols) state.board.push(null);
+    state.board.length = CONFIG.rows * CONFIG.cols;
+    state.questChain = CHAINS[snap.questChain] ? snap.questChain : 'sakura';
+    state.questTier = clamp(snap.questTier || 3, 2, CONFIG.maxTier);
+    state.restorationStep = clamp(snap.restorationStep || 0, 0, RESTORATION_STEPS.length);
+    state.restorationSockets = (snap.restorationSockets || []).map(s => {
+      if (!s || !CHAINS[s.chain]) return null;
+      return { chain: s.chain, tier: s.tier };
+    });
+    state.audioOn = typeof snap.audioOn === 'boolean' ? snap.audioOn : true;
+    state.hasSeenIntro = !!snap.hasSeenIntro;
+
+    if (snap.ts) {
+      const elapsedSec = (Date.now() - snap.ts) / 1000;
+      const regen = Math.floor(elapsedSec / (CONFIG.energyRegenMs / 1000));
+      if (regen > 0) state.energy = Math.min(CONFIG.energyMax, state.energy + regen);
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ---- Audio ----
 
 let audioCtx = null;
 function ensureAudio() {
   if (!state.audioOn) return null;
   if (!audioCtx) {
-    try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) { return null; }
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { return null; }
   }
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
@@ -168,6 +293,25 @@ function playRestoration() {
   setTimeout(() => playTone(988, 0.6, 'sine', 0.11, 0.01), 200);
 }
 
+// ---- Dialogue ----
+
+let dialogueQueue = [];
+
+function showDialogue(lines) {
+  dialogueQueue = [...lines];
+  if (dialogueQueue.length > 0) advanceDialogue();
+}
+
+function advanceDialogue() {
+  if (dialogueQueue.length === 0) {
+    el.dialogue.classList.add('hidden');
+    saveState();
+    return;
+  }
+  el.dialogue.classList.remove('hidden');
+  el.dialogueText.textContent = dialogueQueue.shift();
+}
+
 // ---- Sockets / helpers ----
 
 function initSockets() {
@@ -205,13 +349,14 @@ function tapGenerator(chainName) {
   }
   playTap();
   render();
+  saveState();
 }
 
 // ---- Drag & drop ----
 
 const drag = {
   active: false,
-  source: null,       // { type, idx, chain, tier }
+  source: null,
   ghost: null,
   pointerId: null,
   cancelling: false,
@@ -266,6 +411,7 @@ function finishDrag() {
   drag.source = null;
   clearDropTargets();
   render();
+  saveState();
 }
 
 function snapBackAndCleanup() {
@@ -361,8 +507,7 @@ function dropOnCell(src, toIdx) {
     return true;
   }
 
-  const why = !sameChain ? 'Different chains' : 'Different tiers';
-  toast(why, 'warn');
+  toast(!sameChain ? 'Different chains' : 'Different tiers', 'warn');
   playInvalid();
   return false;
 }
@@ -425,6 +570,7 @@ function completeStep() {
   if (state.coins < step.coins) return toast(`Need ${step.coins - state.coins} more coins`, 'warn');
 
   state.coins -= step.coins;
+  const completedIdx = state.restorationStep;
   state.restorationStep += 1;
   initSockets();
   toast(`★ ${step.name} restored!`, 'success');
@@ -434,6 +580,10 @@ function completeStep() {
     setTimeout(() => toast('✨ Village fully restored ✨', 'success'), 900);
   }
   render();
+  saveState();
+
+  const lines = HANA_AFTER_STEP[completedIdx];
+  if (lines) setTimeout(() => showDialogue(lines), 1100);
 }
 
 function deliverQuest() {
@@ -466,6 +616,7 @@ function deliverQuest() {
 
   pickNextQuest();
   render();
+  saveState();
 }
 
 function pickNextQuest() {
@@ -476,7 +627,7 @@ function pickNextQuest() {
   else if (lvl < 10) tierCandidates = [3, 4, 5];
   else if (lvl < 15) tierCandidates = [4, 5, 6];
   else tierCandidates = [5, 6, 7];
-  state.questChain = Math.random() < 0.5 ? 'sakura' : 'sushi';
+  state.questChain = CHAIN_NAMES[Math.floor(Math.random() * CHAIN_NAMES.length)];
   state.questTier = tierCandidates[Math.floor(Math.random() * tierCandidates.length)];
 }
 
@@ -492,6 +643,8 @@ function regenEnergy() {
 }
 
 function resetGame() {
+  const hasProgress = state.coins > 0 || state.xp > 0 || state.restorationStep > 0 || state.level > 1;
+  if (hasProgress && !confirm('Reset all progress? This cannot be undone.')) return;
   state.energy = CONFIG.energyStart;
   state.coins = 0;
   state.xp = 0;
@@ -504,9 +657,12 @@ function resetGame() {
   state.spawnedCells.clear();
   state.spawnOrder = [];
   state.mergedCell = null;
+  state.hasSeenIntro = false;
   initSockets();
   render();
+  saveState();
   toast('Reset!');
+  setTimeout(() => showDialogue(HANA_INTRO), 200);
 }
 
 function toggleAudio() {
@@ -514,6 +670,7 @@ function toggleAudio() {
   el.audioToggle.textContent = state.audioOn ? '🔊' : '🔇';
   el.audioToggle.classList.toggle('muted', !state.audioOn);
   if (state.audioOn) playTap();
+  saveState();
 }
 
 // ---- Particles ----
@@ -617,6 +774,7 @@ function renderQuest() {
 
 function renderRestoration() {
   const totalSteps = RESTORATION_STEPS.length;
+  el.stepTotal.textContent = totalSteps;
   const step = RESTORATION_STEPS[state.restorationStep];
 
   if (!step) {
@@ -659,7 +817,7 @@ function renderRestoration() {
       socket.classList.add('empty');
       const hint = document.createElement('span');
       hint.className = 'socket-hint';
-      hint.textContent = (req.chain === 'sakura' ? '🌸' : '🍙') + 'T' + req.tier;
+      hint.textContent = SOCKET_HINT_ICON[req.chain] + 'T' + req.tier;
       socket.appendChild(hint);
     }
     el.sockets.appendChild(socket);
@@ -681,17 +839,35 @@ function toast(msg, kind = '') {
 
 // ---- Init ----
 
-initSockets();
+const loaded = loadState();
+if (!loaded) initSockets();
+
+el.audioToggle.textContent = state.audioOn ? '🔊' : '🔇';
+el.audioToggle.classList.toggle('muted', !state.audioOn);
+
 el.genSakura.addEventListener('click', () => tapGenerator('sakura'));
 el.genSushi.addEventListener('click', () => tapGenerator('sushi'));
+el.genLantern.addEventListener('click', () => tapGenerator('lantern'));
 el.questDeliver.addEventListener('click', deliverQuest);
 el.stepComplete.addEventListener('click', completeStep);
 el.reset.addEventListener('click', resetGame);
 el.audioToggle.addEventListener('click', toggleAudio);
+el.dialogueNext.addEventListener('click', advanceDialogue);
+el.dialogue.addEventListener('click', e => {
+  if (e.target === el.dialogue) advanceDialogue();
+});
 
 document.addEventListener('pointermove', onPointerMove);
 document.addEventListener('pointerup', onPointerUp);
 document.addEventListener('pointercancel', () => { if (drag.active) { restoreSource(); finishDrag(); } });
 
-setInterval(regenEnergy, CONFIG.energyRegenMs);
+setInterval(() => { regenEnergy(); saveState(); }, CONFIG.energyRegenMs);
 render();
+
+if (!state.hasSeenIntro) {
+  setTimeout(() => {
+    showDialogue(HANA_INTRO);
+    state.hasSeenIntro = true;
+    saveState();
+  }, 400);
+}
