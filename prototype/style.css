@@ -79,6 +79,60 @@ body {
   font-weight: 500;
 }
 
+/* Spirit Album */
+.album {
+  background: white;
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow);
+}
+.album-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.album-slots {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.album-slot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f5e8ee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  filter: grayscale(1) opacity(0.45);
+  transition: all 0.3s;
+  border: 2px solid transparent;
+  color: var(--text-muted);
+}
+.album-slot.earned {
+  filter: none;
+  background: linear-gradient(135deg, #fff, var(--accent-light));
+  border-color: var(--gold);
+  box-shadow: 0 0 6px rgba(244, 197, 66, 0.55);
+  animation: album-shimmer 2.4s ease-in-out infinite;
+  color: inherit;
+}
+.album-slot.earned.chain-sakura { background: linear-gradient(135deg, #fff, var(--accent-light)); }
+.album-slot.earned.chain-sushi  { background: linear-gradient(135deg, #fff, var(--sushi-light)); }
+.album-slot.earned.chain-lantern { background: linear-gradient(135deg, #fff, var(--lantern-light)); }
+@keyframes album-shimmer {
+  0%, 100% { box-shadow: 0 0 6px rgba(244, 197, 66, 0.5); }
+  50%      { box-shadow: 0 0 14px rgba(244, 197, 66, 0.85); }
+}
+
 /* Quest panel */
 .quest-panel {
   background: white;

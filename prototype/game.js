@@ -3,7 +3,7 @@
 // offline energy regen, Hana intro + per-step dialogue.
 
 const CONFIG = {
-  rows: 9,
+  baseBoardRows: 9,
   cols: 7,
   energyMax: 120,
   energyStart: 120,
@@ -16,8 +16,13 @@ const CONFIG = {
   xpCurveExp: 1.3,
   spawnStaggerMs: 80,
   storageKey: 'sakuraMerge_save',
-  storageVersion: 4,
+  storageVersion: 5,
 };
+
+// Prototype values - GDD calls for L10 and L25 in production.
+const BOARD_EXPANSIONS = { 5: 1, 10: 1 };
+const MAX_BOARD_ROWS = CONFIG.baseBoardRows
+  + Object.values(BOARD_EXPANSIONS).reduce((a, b) => a + b, 0);
 
 const CHAINS = {
   sakura: {
@@ -141,17 +146,20 @@ const HANA_INTRO = [
 ];
 
 function makeInitialState() {
+  const rows = CONFIG.baseBoardRows;
   return {
     energy: CONFIG.energyStart,
     coins: 0,
     xp: 0,
     level: 1,
-    board: new Array(CONFIG.rows * CONFIG.cols).fill(null),
+    boardRows: rows,
+    board: new Array(rows * CONFIG.cols).fill(null),
     draggingIdx: null,
     questChain: 'sakura',
     questTier: 3,
     restorationStep: 0,
     restorationSockets: [],
+    spiritAlbum: { sakura: false, sushi: false, lantern: false },
     spawnedCells: new Set(),
     spawnOrder: [],
     mergedCell: null,
@@ -183,6 +191,8 @@ const el = {
   dialogue: document.getElementById('dialogue'),
   dialogueText: document.getElementById('dialogue-text'),
   dialogueNext: document.getElementById('dialogue-next'),
+  album: document.getElementById('album'),
+  albumSlots: document.getElementById('album-slots'),
 };
 
 // ---- Persistence ----
@@ -204,11 +214,13 @@ function saveState() {
       coins: state.coins,
       xp: state.xp,
       level: state.level,
+      boardRows: state.boardRows,
       board: state.board,
       questChain: state.questChain,
       questTier: state.questTier,
       restorationStep: state.restorationStep,
       restorationSockets: state.restorationSockets,
+      spiritAlbum: state.spiritAlbum,
       audioOn: state.audioOn,
       hasSeenIntro: state.hasSeenIntro,
     }));
@@ -220,9 +232,17 @@ function loadState() {
     const raw = localStorage.getItem(CONFIG.storageKey);
     if (!raw) return false;
     const snap = JSON.parse(raw);
-    if (snap.version !== CONFIG.storageVersion) return false;
+    // Forward-compatible: discard saves from a NEWER schema (we can't know
+    // what they mean), but accept older ones — defensive reads + defaults
+    // below handle missing fields, so additive bumps don't wipe progress.
+    if (snap.version > CONFIG.storageVersion) return false;
 
-    const boardSize = CONFIG.rows * CONFIG.cols;
+    state.boardRows = clamp(
+      snap.boardRows || CONFIG.baseBoardRows,
+      CONFIG.baseBoardRows,
+      MAX_BOARD_ROWS,
+    );
+    const boardSize = state.boardRows * CONFIG.cols;
     const board = new Array(boardSize).fill(null);
     (snap.board || []).slice(0, boardSize).forEach((item, i) => {
       const valid = sanitizeItem(item);
@@ -238,6 +258,8 @@ function loadState() {
     state.questTier = clamp(snap.questTier || 3, 2, CONFIG.maxTier);
     state.restorationStep = clamp(snap.restorationStep || 0, 0, RESTORATION_STEPS.length);
     state.restorationSockets = (snap.restorationSockets || []).map(sanitizeItem);
+    const album = snap.spiritAlbum || {};
+    CHAIN_NAMES.forEach(c => { state.spiritAlbum[c] = !!album[c]; });
     state.audioOn = typeof snap.audioOn === 'boolean' ? snap.audioOn : true;
     state.hasSeenIntro = !!snap.hasSeenIntro;
 
@@ -318,7 +340,35 @@ function advanceDialogue() {
   el.dialogueText.textContent = dialogueQueue.shift();
 }
 
-// ---- Sockets / helpers ----
+// ---- Board layout / album / sockets ----
+
+function applyBoardLayout() {
+  el.board.style.gridTemplateRows = `repeat(${state.boardRows}, 1fr)`;
+  el.board.style.aspectRatio = `${CONFIG.cols} / ${state.boardRows}`;
+}
+
+function expandBoardForLevels(fromLevel, toLevel) {
+  let grow = 0;
+  for (let lvl = fromLevel + 1; lvl <= toLevel; lvl++) {
+    grow += BOARD_EXPANSIONS[lvl] || 0;
+  }
+  if (grow === 0) return false;
+  state.boardRows += grow;
+  for (let i = 0; i < grow * CONFIG.cols; i++) state.board.push(null);
+  applyBoardLayout();
+  return true;
+}
+
+function checkAlbumProgress(chain) {
+  if (state.spiritAlbum[chain]) return;
+  state.spiritAlbum[chain] = true;
+  const tier7 = CHAINS[chain].tiers[CONFIG.maxTier];
+  setTimeout(() => {
+    toast(`✨ ${tier7.name} added to your Album!`, 'success');
+    playLevelUp();
+    if (el.album) spawnParticles(el.album, 18, ['#ffd700', '#ff79b4', '#fff', '#ffaa44']);
+  }, 700);
+}
 
 function initSockets() {
   const step = RESTORATION_STEPS[state.restorationStep];
@@ -509,6 +559,7 @@ function dropOnCell(src, toIdx) {
       : `Merged → ${next.name} (T${newTier})`;
     toast(msg, 'success');
     playMerge(newTier);
+    if (newTier === CONFIG.maxTier) checkAlbumProgress(src.chain);
     return true;
   }
 
@@ -584,7 +635,10 @@ function completeStep() {
     setTimeout(() => toast('✨ Village fully restored ✨', 'success'), 900);
   }
   if (step.dialogue) setTimeout(() => showDialogue(step.dialogue), 1100);
-  render();
+  // Board is untouched here; skip renderBoard to avoid rebuilding 63+ cells.
+  renderStats();
+  renderQuest();
+  renderRestoration();
   saveState();
 }
 
@@ -603,17 +657,25 @@ function deliverQuest() {
   playQuest();
 
   let leveled = false;
+  const startLevel = state.level;
   while (state.xp >= xpForNextLevel(state.level)) {
     state.xp -= xpForNextLevel(state.level);
     state.level += 1;
     leveled = true;
   }
   if (leveled) {
+    const expanded = expandBoardForLevels(startLevel, state.level);
     setTimeout(() => {
       toast(`Level up! → ${state.level}`, 'success');
       playLevelUp();
       spawnParticles(el.level, 16, ['#ffd700', '#ff79b4', '#fff', '#ffaa44']);
     }, 600);
+    if (expanded) {
+      setTimeout(() => {
+        toast(`Board expanded! New row unlocked`, 'success');
+        spawnParticles(el.board, 24, ['#ffd700', '#ff79b4', '#fff']);
+      }, 1300);
+    }
   }
 
   pickNextQuest();
@@ -649,6 +711,7 @@ function resetGame() {
   if (hasProgress && !confirm('Reset all progress? This cannot be undone.')) return;
   Object.assign(state, makeInitialState());
   initSockets();
+  applyBoardLayout();
   render();
   saveState();
   toast('Reset!');
@@ -697,6 +760,21 @@ function render() {
   renderStats();
   renderQuest();
   renderRestoration();
+  renderAlbum();
+}
+
+function renderAlbum() {
+  if (!el.albumSlots) return;
+  el.albumSlots.innerHTML = '';
+  CHAIN_NAMES.forEach(chain => {
+    const earned = !!state.spiritAlbum[chain];
+    const tier7 = CHAINS[chain].tiers[CONFIG.maxTier];
+    const slot = document.createElement('div');
+    slot.className = 'album-slot chain-' + chain + (earned ? ' earned' : ' locked');
+    slot.textContent = earned ? tier7.emoji : '?';
+    slot.title = earned ? tier7.name : `Merge to ${tier7.name} to unlock`;
+    el.albumSlots.appendChild(slot);
+  });
 }
 
 function renderBoard() {
@@ -834,6 +912,7 @@ function toast(msg, kind = '') {
 
 if (!loadState()) initSockets();
 el.stepTotal.textContent = RESTORATION_STEPS.length;
+applyBoardLayout();
 renderAudioToggle();
 
 CHAIN_NAMES.forEach(chain => {
