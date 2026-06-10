@@ -229,6 +229,16 @@ const el = {
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+// Twemoji turns native emoji into consistent SVGs (bundled under lib/svg/).
+// Falls back to native emoji if the parser script hasn't loaded yet.
+function parseEmoji(node) {
+  if (window.twemoji) {
+    window.twemoji.parse(node || document.body, {
+      base: 'lib/', folder: 'svg', ext: '.svg', className: 'emoji',
+    });
+  }
+}
+
 function sanitizeItem(item) {
   if (!item || !CHAINS[item.chain]) return null;
   if (item.tier < 1 || item.tier > CONFIG.maxTier) return null;
@@ -377,6 +387,7 @@ function advanceDialogue() {
   }
   el.dialogue.classList.remove('hidden');
   el.dialogueText.textContent = dialogueQueue.shift();
+  parseEmoji(el.dialogue);
 }
 
 // ---- Board layout / album / sockets ----
@@ -418,6 +429,7 @@ function maybeShowBlessing() {
   el.blessingText.textContent =
     `Hana rings the morning bell. Today's offering: ${r.coins} coins and ${r.energy} energy. ⛩️`;
   el.blessing.classList.remove('hidden');
+  parseEmoji(el.blessing);
 }
 
 function claimBlessing() {
@@ -474,6 +486,7 @@ function spawnPetalRain() {
     p.style.animationDelay = (Math.random() * 8) + 's';
     p.style.fontSize = (10 + Math.random() * 10) + 'px';
     document.body.appendChild(p);
+    parseEmoji(p);
   }
 }
 
@@ -550,6 +563,7 @@ function onItemPointerDown(e, source) {
   drag.ghost.style.fontSize = def.size + 'px';
   drag.ghost.textContent = def.emoji;
   document.body.appendChild(drag.ghost);
+  parseEmoji(drag.ghost);
 
   moveGhost(e.clientX, e.clientY, e.pointerType);
 
@@ -881,6 +895,7 @@ function render() {
   renderRestoration();
   renderAlbum();
   renderEvent();
+  parseEmoji();
 }
 
 function renderEvent() {
@@ -1042,6 +1057,7 @@ let toastTimer = null;
 function toast(msg, kind = '') {
   el.toast.textContent = msg;
   el.toast.className = 'toast show ' + kind;
+  parseEmoji(el.toast);
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.toast.className = 'toast ' + kind; }, 1600);
 }
@@ -1074,6 +1090,9 @@ document.addEventListener('pointercancel', () => { if (drag.active) { restoreSou
 setInterval(() => { regenEnergy(); saveState(); }, CONFIG.energyRegenMs);
 applyHanamiCosmetics();
 render();
+
+// Twemoji may load after our first render — re-parse once when it finishes.
+window.addEventListener('load', () => parseEmoji());
 
 if (!state.hasSeenIntro) {
   setTimeout(() => {
