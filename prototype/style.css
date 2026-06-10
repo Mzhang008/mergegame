@@ -133,6 +133,74 @@ body {
   50%      { box-shadow: 0 0 14px rgba(244, 197, 66, 0.85); }
 }
 
+/* Hanami event */
+.event {
+  background: linear-gradient(135deg, #fff, #fff0f6);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid #ff79b4;
+}
+.event-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #d6438c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.event-petals {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.event-shop {
+  display: flex;
+  gap: 6px;
+}
+.event-item {
+  border: 1.5px solid var(--accent-light);
+  background: white;
+  border-radius: 9px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.15s;
+  white-space: nowrap;
+}
+.event-item:active:not(:disabled) { transform: scale(0.94); }
+.event-item:disabled { opacity: 0.5; cursor: not-allowed; }
+.event-item.owned {
+  opacity: 1;
+  border-color: var(--gold);
+  background: linear-gradient(135deg, #fff, #fff7df);
+  cursor: default;
+}
+
+/* Hanami cosmetics */
+.falling-petal {
+  position: fixed;
+  top: -5vh;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.75;
+  animation: petal-fall linear infinite;
+}
+@keyframes petal-fall {
+  0%   { transform: translateY(0) translateX(0) rotate(0deg); }
+  100% { transform: translateY(115vh) translateX(40px) rotate(340deg); }
+}
+body.gold-glow .board {
+  box-shadow: var(--shadow), inset 0 0 40px rgba(244, 197, 66, 0.35);
+}
+
 /* Quest panel */
 .quest-panel {
   background: white;

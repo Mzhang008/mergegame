@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Sakura Merge — Prototype v0.5</title>
+<title>Sakura Merge — Prototype v0.6</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,6 +30,14 @@
   <div class="album" id="album">
     <div class="album-label">Spirit Album</div>
     <div class="album-slots" id="album-slots"></div>
+  </div>
+
+  <div class="event" id="event">
+    <div class="event-info">
+      <div class="event-label">🌸 Hanami Festival</div>
+      <div class="event-petals"><span id="petals">0</span> petals</div>
+    </div>
+    <div class="event-shop" id="event-shop"></div>
   </div>
 
   <div class="quest-panel" id="quest">
@@ -84,8 +92,8 @@
 
   <div class="toast" id="toast"></div>
   <footer>
-    Sakura Merge · Prototype v0.5<br>
-    <span class="hint">Drag to merge · Reach T7 to fill your Spirit Album · Auto-saves to your browser</span>
+    Sakura Merge · Prototype v0.6<br>
+    <span class="hint">Drag to merge · Earn petals from T3+ merges · Spend them in the Hanami shop</span>
   </footer>
 </div>
 
@@ -96,6 +104,17 @@
       <div class="dialogue-name">Hana</div>
       <div class="dialogue-text" id="dialogue-text"></div>
       <button class="dialogue-next" id="dialogue-next">Continue ▶</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialogue-overlay hidden" id="blessing">
+  <div class="dialogue-bubble">
+    <div class="dialogue-portrait">⛩️</div>
+    <div class="dialogue-body">
+      <div class="dialogue-name">Daily Blessing · Day <span id="blessing-day">1</span>/7</div>
+      <div class="dialogue-text" id="blessing-text"></div>
+      <button class="dialogue-next" id="blessing-claim">Claim 🎁</button>
     </div>
   </div>
 </div>

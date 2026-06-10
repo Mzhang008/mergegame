@@ -77,6 +77,26 @@ const QUEST_REWARDS = {
   7: { coins: 600,  xp: 700 },
 };
 
+// Daily blessing rewards indexed by streak day (1-7).
+const BLESSING_REWARDS = [
+  null,
+  { coins: 50,  energy: 10 },
+  { coins: 75,  energy: 15 },
+  { coins: 100, energy: 20 },
+  { coins: 125, energy: 25 },
+  { coins: 150, energy: 30 },
+  { coins: 200, energy: 40 },
+  { coins: 300, energy: 60 },
+];
+// Rewards may push energy past the regen cap, but never past this.
+const ENERGY_OVERFLOW_CAP = 200;
+
+const HANAMI_SHOP = [
+  { id: 'petalRain', emoji: '🌸', name: 'Petal Rain',     cost: 15 },
+  { id: 'goldGlow',  emoji: '✨', name: 'Golden Hour',    cost: 40 },
+  { id: 'tanabata',  emoji: '🎋', name: 'Tanabata Trees', cost: 80 },
+];
+
 const RESTORATION_STEPS = [
   {
     name: 'Clear the path',
@@ -160,6 +180,10 @@ function makeInitialState() {
     restorationStep: 0,
     restorationSockets: [],
     spiritAlbum: { sakura: false, sushi: false, lantern: false },
+    lastBlessingDate: null,
+    blessingStreak: 0,
+    petals: 0,
+    hanami: { petalRain: false, goldGlow: false, tanabata: false },
     spawnedCells: new Set(),
     spawnOrder: [],
     mergedCell: null,
@@ -193,6 +217,12 @@ const el = {
   dialogueNext: document.getElementById('dialogue-next'),
   album: document.getElementById('album'),
   albumSlots: document.getElementById('album-slots'),
+  blessing: document.getElementById('blessing'),
+  blessingDay: document.getElementById('blessing-day'),
+  blessingText: document.getElementById('blessing-text'),
+  blessingClaim: document.getElementById('blessing-claim'),
+  petals: document.getElementById('petals'),
+  eventShop: document.getElementById('event-shop'),
 };
 
 // ---- Persistence ----
@@ -221,6 +251,10 @@ function saveState() {
       restorationStep: state.restorationStep,
       restorationSockets: state.restorationSockets,
       spiritAlbum: state.spiritAlbum,
+      lastBlessingDate: state.lastBlessingDate,
+      blessingStreak: state.blessingStreak,
+      petals: state.petals,
+      hanami: state.hanami,
       audioOn: state.audioOn,
       hasSeenIntro: state.hasSeenIntro,
     }));
@@ -260,6 +294,11 @@ function loadState() {
     state.restorationSockets = (snap.restorationSockets || []).map(sanitizeItem);
     const album = snap.spiritAlbum || {};
     CHAIN_NAMES.forEach(c => { state.spiritAlbum[c] = !!album[c]; });
+    state.lastBlessingDate = snap.lastBlessingDate || null;
+    state.blessingStreak = clamp(snap.blessingStreak || 0, 0, 7);
+    state.petals = snap.petals || 0;
+    const hanami = snap.hanami || {};
+    HANAMI_SHOP.forEach(({ id }) => { state.hanami[id] = !!hanami[id]; });
     state.audioOn = typeof snap.audioOn === 'boolean' ? snap.audioOn : true;
     state.hasSeenIntro = !!snap.hasSeenIntro;
 
@@ -357,6 +396,85 @@ function expandBoardForLevels(fromLevel, toLevel) {
   for (let i = 0; i < grow * CONFIG.cols; i++) state.board.push(null);
   applyBoardLayout();
   return true;
+}
+
+// ---- Daily blessing ----
+
+function localDateStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+let pendingBlessingStreak = 0;
+
+function maybeShowBlessing() {
+  const today = localDateStr();
+  if (state.lastBlessingDate === today) return;
+  const yesterday = localDateStr(new Date(Date.now() - 86400000));
+  pendingBlessingStreak = state.lastBlessingDate === yesterday
+    ? (state.blessingStreak % 7) + 1
+    : 1;
+  const r = BLESSING_REWARDS[pendingBlessingStreak];
+  el.blessingDay.textContent = pendingBlessingStreak;
+  el.blessingText.textContent =
+    `Hana rings the morning bell. Today's offering: ${r.coins} coins and ${r.energy} energy. ⛩️`;
+  el.blessing.classList.remove('hidden');
+}
+
+function claimBlessing() {
+  const r = BLESSING_REWARDS[pendingBlessingStreak];
+  if (!r) return;
+  state.coins += r.coins;
+  state.energy = Math.min(ENERGY_OVERFLOW_CAP, state.energy + r.energy);
+  state.blessingStreak = pendingBlessingStreak;
+  state.lastBlessingDate = localDateStr();
+  pendingBlessingStreak = 0;
+  el.blessing.classList.add('hidden');
+  toast(`+${r.coins} coins · +${r.energy} ⚡`, 'success');
+  playQuest();
+  spawnParticles(el.energy, 12, ['#ffd700', '#fff', '#ff79b4']);
+  renderStats();
+  saveState();
+}
+
+// ---- Hanami festival ----
+
+function earnPetals(n) {
+  state.petals += n;
+  renderEvent();
+}
+
+function buyHanami(id) {
+  const item = HANAMI_SHOP.find(s => s.id === id);
+  if (!item || state.hanami[id]) return;
+  if (state.petals < item.cost) { playInvalid(); return toast(`Need ${item.cost - state.petals} more petals`, 'warn'); }
+  state.petals -= item.cost;
+  state.hanami[id] = true;
+  applyHanamiCosmetics();
+  toast(`${item.emoji} ${item.name} unlocked!`, 'success');
+  playRestoration();
+  if (el.eventShop) spawnParticles(el.eventShop, 14, ['#ff79b4', '#ffd700', '#fff']);
+  renderEvent();
+  renderRestoration();
+  saveState();
+}
+
+function applyHanamiCosmetics() {
+  document.body.classList.toggle('gold-glow', state.hanami.goldGlow);
+  if (state.hanami.petalRain) spawnPetalRain();
+}
+
+function spawnPetalRain() {
+  if (document.querySelector('.falling-petal')) return;
+  for (let i = 0; i < 10; i++) {
+    const p = document.createElement('span');
+    p.className = 'falling-petal';
+    p.textContent = '🌸';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.animationDuration = (6 + Math.random() * 6) + 's';
+    p.style.animationDelay = (Math.random() * 8) + 's';
+    p.style.fontSize = (10 + Math.random() * 10) + 'px';
+    document.body.appendChild(p);
+  }
 }
 
 function checkAlbumProgress(chain) {
@@ -559,6 +677,7 @@ function dropOnCell(src, toIdx) {
       : `Merged → ${next.name} (T${newTier})`;
     toast(msg, 'success');
     playMerge(newTier);
+    if (newTier >= 3) earnPetals(newTier - 2);
     if (newTier === CONFIG.maxTier) checkAlbumProgress(src.chain);
     return true;
   }
@@ -761,6 +880,23 @@ function render() {
   renderQuest();
   renderRestoration();
   renderAlbum();
+  renderEvent();
+}
+
+function renderEvent() {
+  if (!el.petals) return;
+  el.petals.textContent = state.petals;
+  el.eventShop.innerHTML = '';
+  HANAMI_SHOP.forEach(item => {
+    const owned = state.hanami[item.id];
+    const btn = document.createElement('button');
+    btn.className = 'event-item' + (owned ? ' owned' : '');
+    btn.title = item.name;
+    btn.textContent = owned ? `${item.emoji} ✓` : `${item.emoji} ${item.cost}`;
+    btn.disabled = owned || state.petals < item.cost;
+    if (!owned) btn.addEventListener('click', () => buyHanami(item.id));
+    el.eventShop.appendChild(btn);
+  });
 }
 
 function renderAlbum() {
@@ -851,7 +987,8 @@ function renderRestoration() {
     el.stepNum.textContent = RESTORATION_STEPS.length;
     el.stepName.textContent = 'Village fully restored ✨';
     el.stepCost.textContent = '—';
-    el.villageArt.textContent = RESTORATION_STEPS[RESTORATION_STEPS.length - 1].art;
+    const finalArt = RESTORATION_STEPS[RESTORATION_STEPS.length - 1].art;
+    el.villageArt.textContent = state.hanami.tanabata ? `🎋 ${finalArt} 🎋` : finalArt;
     el.sockets.innerHTML = '';
     el.stepComplete.disabled = true;
     el.stepComplete.style.opacity = '0.4';
@@ -861,9 +998,10 @@ function renderRestoration() {
   el.stepNum.textContent = state.restorationStep + 1;
   el.stepName.textContent = step.name;
   el.stepCost.textContent = step.coins;
-  el.villageArt.textContent = state.restorationStep === 0
+  const art = state.restorationStep === 0
     ? VILLAGE_ART_INITIAL
     : RESTORATION_STEPS[state.restorationStep - 1].art;
+  el.villageArt.textContent = state.hanami.tanabata ? `🎋 ${art} 🎋` : art;
 
   el.sockets.innerHTML = '';
   for (let i = 0; i < step.sockets.length; i++) {
@@ -923,6 +1061,7 @@ el.questDeliver.addEventListener('click', deliverQuest);
 el.stepComplete.addEventListener('click', completeStep);
 el.reset.addEventListener('click', resetGame);
 el.audioToggle.addEventListener('click', toggleAudio);
+el.blessingClaim.addEventListener('click', claimBlessing);
 el.dialogueNext.addEventListener('click', advanceDialogue);
 el.dialogue.addEventListener('click', e => {
   if (e.target === el.dialogue) advanceDialogue();
@@ -933,6 +1072,7 @@ document.addEventListener('pointerup', onPointerUp);
 document.addEventListener('pointercancel', () => { if (drag.active) { restoreSource(); finishDrag(); } });
 
 setInterval(() => { regenEnergy(); saveState(); }, CONFIG.energyRegenMs);
+applyHanamiCosmetics();
 render();
 
 if (!state.hasSeenIntro) {
@@ -940,4 +1080,6 @@ if (!state.hasSeenIntro) {
     state.hasSeenIntro = true;
     showDialogue(HANA_INTRO);
   }, 400);
+} else {
+  setTimeout(maybeShowBlessing, 600);
 }
