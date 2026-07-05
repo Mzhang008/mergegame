@@ -29,44 +29,58 @@ const CHAINS = {
     hint: '🌸',
     tiers: [
       null,
-      { emoji: '🌱', name: 'Sakura Bud',           size: 18 },
-      { emoji: '🌸', name: 'Pink Petal',           size: 22 },
-      { emoji: '🌷', name: 'Blooming Branch',      size: 26 },
-      { emoji: '💮', name: 'Sakura Bonsai',        size: 30 },
-      { emoji: '🌺', name: 'Young Sakura Tree',    size: 34 },
-      { emoji: '🌳', name: 'Full Sakura Bloom',    size: 40 },
-      { emoji: '🌲', name: 'Eternal Sakura Spirit', size: 46 },
+      { emoji: '🌱', name: 'Sakura Bud',            size: 18, art: 'art/sakura-1.svg' },
+      { emoji: '🌸', name: 'Pink Petal',            size: 22, art: 'art/sakura-2.svg' },
+      { emoji: '🌷', name: 'Blooming Branch',       size: 26, art: 'art/sakura-3.svg' },
+      { emoji: '💮', name: 'Sakura Bonsai',         size: 30, art: 'art/sakura-4.svg' },
+      { emoji: '🌺', name: 'Young Sakura Tree',     size: 34, art: 'art/sakura-5.svg' },
+      { emoji: '🌳', name: 'Full Sakura Bloom',     size: 40, art: 'art/sakura-6.svg' },
+      { emoji: '🌲', name: 'Eternal Sakura Spirit', size: 46, art: 'art/sakura-7.svg' },
     ],
   },
   sushi: {
     hint: '🍙',
     tiers: [
       null,
-      { emoji: '🌾', name: 'Rice Grain',     size: 18 },
-      { emoji: '🍚', name: 'Rice Bowl',      size: 22 },
-      { emoji: '🍙', name: 'Onigiri',        size: 26 },
-      { emoji: '🍣', name: 'Maki Roll',      size: 30 },
-      { emoji: '🍤', name: 'Tempura Plate',  size: 34 },
-      { emoji: '🍱', name: 'Bento Box',      size: 40 },
-      { emoji: '🍶', name: 'Imperial Feast', size: 46 },
+      { emoji: '🌾', name: 'Rice Grain',     size: 18, art: 'art/sushi-1.svg' },
+      { emoji: '🍚', name: 'Rice Bowl',      size: 22, art: 'art/sushi-2.svg' },
+      { emoji: '🍙', name: 'Onigiri',        size: 26, art: 'art/sushi-3.svg' },
+      { emoji: '🍣', name: 'Maki Roll',      size: 30, art: 'art/sushi-4.svg' },
+      { emoji: '🍤', name: 'Tempura Plate',  size: 34, art: 'art/sushi-5.svg' },
+      { emoji: '🍱', name: 'Bento Box',      size: 40, art: 'art/sushi-6.svg' },
+      { emoji: '🍶', name: 'Imperial Feast', size: 46, art: 'art/sushi-7.svg' },
     ],
   },
   lantern: {
     hint: '🏮',
     tiers: [
       null,
-      { emoji: '📜', name: 'Paper Scrap',      size: 18 },
-      { emoji: '📃', name: 'Folded Paper',     size: 22 },
-      { emoji: '🎴', name: 'Painted Paper',    size: 26 },
-      { emoji: '🏮', name: 'Small Lantern',    size: 30 },
-      { emoji: '🪔', name: 'Lit Lantern',      size: 34 },
-      { emoji: '🎐', name: 'Floating Lantern', size: 40 },
-      { emoji: '🌟', name: 'Spirit Lantern',   size: 46 },
+      { emoji: '📜', name: 'Paper Scrap',      size: 18, art: 'art/lantern-1.svg' },
+      { emoji: '📃', name: 'Folded Paper',     size: 22, art: 'art/lantern-2.svg' },
+      { emoji: '🎴', name: 'Painted Paper',    size: 26, art: 'art/lantern-3.svg' },
+      { emoji: '🏮', name: 'Small Lantern',    size: 30, art: 'art/lantern-4.svg' },
+      { emoji: '🪔', name: 'Lit Lantern',      size: 34, art: 'art/lantern-5.svg' },
+      { emoji: '🎐', name: 'Floating Lantern', size: 40, art: 'art/lantern-6.svg' },
+      { emoji: '🌟', name: 'Spirit Lantern',   size: 46, art: 'art/lantern-7.svg' },
     ],
   },
 };
 const CHAIN_NAMES = Object.keys(CHAINS);
 function getItem(chain, tier) { return CHAINS[chain].tiers[tier]; }
+
+// Build an <img> for an item's anime-style SVG art. Size derives from the
+// tier's legacy font-size value so the visual scale progression is kept.
+function makeItemArt(def, sizeBoost = 10) {
+  const img = document.createElement('img');
+  img.className = 'item-art';
+  img.src = def.art;
+  img.alt = def.name;
+  img.draggable = false;
+  const px = def.size + sizeBoost;
+  img.style.width = px + 'px';
+  img.style.height = px + 'px';
+  return img;
+}
 
 const QUEST_REWARDS = {
   2: { coins: 6,    xp: 10 },
@@ -560,10 +574,8 @@ function onItemPointerDown(e, source) {
   drag.ghost = document.createElement('div');
   drag.ghost.className = 'drag-ghost';
   if (source.tier === CONFIG.maxTier) drag.ghost.classList.add('tier-7');
-  drag.ghost.style.fontSize = def.size + 'px';
-  drag.ghost.textContent = def.emoji;
+  drag.ghost.appendChild(makeItemArt(def));
   document.body.appendChild(drag.ghost);
-  parseEmoji(drag.ghost);
 
   moveGhost(e.clientX, e.clientY, e.pointerType);
 
@@ -922,7 +934,9 @@ function renderAlbum() {
     const tier7 = CHAINS[chain].tiers[CONFIG.maxTier];
     const slot = document.createElement('div');
     slot.className = 'album-slot chain-' + chain + (earned ? ' earned' : ' locked');
-    slot.textContent = earned ? tier7.emoji : '?';
+    const img = makeItemArt(tier7, 0);
+    img.style.width = img.style.height = '26px';
+    slot.appendChild(img);
     slot.title = earned ? tier7.name : `Merge to ${tier7.name} to unlock`;
     el.albumSlots.appendChild(slot);
   });
@@ -944,8 +958,7 @@ function renderBoard() {
       const def = getItem(item.chain, item.tier);
       const span = document.createElement('span');
       span.className = 'item';
-      span.style.fontSize = def.size + 'px';
-      span.textContent = def.emoji;
+      span.appendChild(makeItemArt(def));
       cell.appendChild(span);
       const badge = document.createElement('div');
       badge.className = 'tier-badge';
@@ -1030,18 +1043,22 @@ function renderRestoration() {
       const def = getItem(item.chain, item.tier);
       const span = document.createElement('span');
       span.className = 'item';
-      span.style.fontSize = def.size + 'px';
-      span.textContent = def.emoji;
+      span.appendChild(makeItemArt(def, 4));
       socket.appendChild(span);
       socket.addEventListener('pointerdown', e => onItemPointerDown(e, {
         type: 'socket', idx: i, chain: item.chain, tier: item.tier,
       }));
     } else {
       socket.classList.add('empty');
-      const hint = document.createElement('span');
-      hint.className = 'socket-hint';
-      hint.textContent = CHAINS[req.chain].hint + 'T' + req.tier;
-      socket.appendChild(hint);
+      // Ghosted preview of the exact item this socket needs
+      const reqDef = getItem(req.chain, req.tier);
+      const preview = makeItemArt(reqDef, 0);
+      preview.classList.add('socket-preview');
+      socket.appendChild(preview);
+      const tierTag = document.createElement('span');
+      tierTag.className = 'socket-tier';
+      tierTag.textContent = 'T' + req.tier;
+      socket.appendChild(tierTag);
     }
     el.sockets.appendChild(socket);
   }

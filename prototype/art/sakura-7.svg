@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs><radialGradient id="au"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".9"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></radialGradient></defs>
+<circle cx="32" cy="28" r="27" fill="url(#au)"/>
+<ellipse cx="32" cy="57" rx="16" ry="3.5" fill="#f5c542" opacity=".3"/>
+<path d="M32 56 C32 50 31 46 32 41" fill="none" stroke="#a97c52" stroke-width="7" stroke-linecap="round"/>
+<path d="M32 44 C28 40 24 38 21 37 M32 42 C36 38 40 36 44 36" fill="none" stroke="#a97c52" stroke-width="4" stroke-linecap="round"/>
+<path d="M12 27 C7 18 16 8 25 11 C28 4 42 4 45 10 C55 9 59 21 52 26 C56 33 46 40 39 36 C35 41 25 41 22 36 C14 39 8 33 12 27Z" fill="#fbc0da" stroke="#5b3a45" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="23" cy="18" r="5.5" fill="#fddce9"/>
+<circle cx="38" cy="14" r="4.5" fill="#fddce9"/>
+<circle cx="45" cy="24" r="4" fill="#fddce9"/>
+<path d="M10 10 l1.8 3.6 3.6 1.8 -3.6 1.8 -1.8 3.6 -1.8 -3.6 -3.6 -1.8 3.6 -1.8z" fill="#f5c542"/>
+<path d="M53 7 l1.5 3 3 1.5 -3 1.5 -1.5 3 -1.5 -3 -3 -1.5 3 -1.5z" fill="#f5c542"/>
+<path d="M54 42 l1.2 2.4 2.4 1.2 -2.4 1.2 -1.2 2.4 -1.2 -2.4 -2.4 -1.2 2.4 -1.2z" fill="#f5c542"/>
+<path d="M8 46 c2 1 3 3 2 5 c-2 -1 -3 -3 -2 -5z" fill="#f291bd"/>
+</svg>

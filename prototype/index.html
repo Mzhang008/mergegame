@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#ffe4ed">
-<title>Sakura Merge — Prototype v0.7</title>
+<title>Sakura Merge — Prototype v0.8</title>
 <link rel="stylesheet" href="style.css">
 <script defer src="lib/twemoji.min.js"></script>
 </head>
@@ -75,17 +75,17 @@
   <div class="controls">
     <div class="generators">
       <button class="btn-gen chain-sakura" id="gen-sakura">
-        <span class="gen-icon">🌸</span>
+        <img class="gen-art" src="art/sakura-1.svg" alt="Sakura Bud" draggable="false">
         <span class="gen-label">Sakura</span>
         <span class="gen-cost">−1 ⚡</span>
       </button>
       <button class="btn-gen chain-sushi" id="gen-sushi">
-        <span class="gen-icon">🍚</span>
+        <img class="gen-art" src="art/sushi-1.svg" alt="Rice Grain" draggable="false">
         <span class="gen-label">Rice</span>
         <span class="gen-cost">−1 ⚡</span>
       </button>
       <button class="btn-gen chain-lantern" id="gen-lantern">
-        <span class="gen-icon">📜</span>
+        <img class="gen-art" src="art/lantern-1.svg" alt="Paper Scrap" draggable="false">
         <span class="gen-label">Paper</span>
         <span class="gen-cost">−1 ⚡</span>
       </button>
@@ -96,14 +96,14 @@
 
   <div class="toast" id="toast"></div>
   <footer>
-    Sakura Merge · Prototype v0.7<br>
+    Sakura Merge · Prototype v0.8<br>
     <span class="hint">Drag to merge · Earn petals from T3+ merges · Spend them in the Hanami shop</span>
   </footer>
 </div>
 
 <div class="dialogue-overlay hidden" id="dialogue">
   <div class="dialogue-bubble">
-    <div class="dialogue-portrait">🎎</div>
+    <div class="dialogue-portrait"><img src="art/hana.svg" alt="Hana" draggable="false"></div>
     <div class="dialogue-body">
       <div class="dialogue-name">Hana</div>
       <div class="dialogue-text" id="dialogue-text"></div>
@@ -114,7 +114,7 @@
 
 <div class="dialogue-overlay hidden" id="blessing">
   <div class="dialogue-bubble">
-    <div class="dialogue-portrait">⛩️</div>
+    <div class="dialogue-portrait"><img src="art/torii.svg" alt="Torii gate" draggable="false"></div>
     <div class="dialogue-body">
       <div class="dialogue-name">Daily Blessing · Day <span id="blessing-day">1</span>/7</div>
       <div class="dialogue-text" id="blessing-text"></div>
