@@ -116,7 +116,6 @@ const RESTORATION_STEPS = [
     name: 'Clear the path',
     sockets: [{ chain: 'sakura', tier: 3 }],
     coins: 30,
-    art: '🌿 ⛩️ 🌿',
     dialogue: [
       "The path is clear! I can already feel the wind change.",
       "Welcome the spirits next — they remember the taste of rice. The Rice Sack will help you cook offerings.",
@@ -129,7 +128,6 @@ const RESTORATION_STEPS = [
       { chain: 'sushi',  tier: 3 },
     ],
     coins: 100,
-    art: '🌸 ⛩️ 🍙',
     dialogue: [
       "...The shrine bells stirred. They heard us.",
       "Now we need light. Paper lanterns guided spirits home in the old days — the Paper Pile will let us fold new ones.",
@@ -139,7 +137,6 @@ const RESTORATION_STEPS = [
     name: 'Light the lanterns',
     sockets: [{ chain: 'lantern', tier: 4 }],
     coins: 200,
-    art: '🌸 🏮 ⛩️ 🏮 🌸',
     dialogue: [
       "The lanterns glow once more. I had forgotten that color.",
       "The tea house is next. We will need a proper Maki Roll for the table.",
@@ -149,7 +146,6 @@ const RESTORATION_STEPS = [
     name: 'Open the tea house',
     sockets: [{ chain: 'sushi', tier: 4 }],
     coins: 350,
-    art: '🌸 🍣 ⛩️ 🏮 🌸',
     dialogue: [
       "The aroma drifts through the trees. They are coming back, all of them.",
       "One last thing — the Spirit Tree at the village heart. It needs sakura petals AND lantern light to wake.",
@@ -162,7 +158,6 @@ const RESTORATION_STEPS = [
       { chain: 'lantern', tier: 5 },
     ],
     coins: 700,
-    art: '🌟 🌲 ⛩️ 🌲 🌟',
     dialogue: [
       "...",
       "It blooms. After so long, it blooms.",
@@ -170,7 +165,6 @@ const RESTORATION_STEPS = [
     ],
   },
 ];
-const VILLAGE_ART_INITIAL = '🪨 🌿 🪨';
 
 const HANA_INTRO = [
   "...You came. The torii gate opened for you.",
@@ -223,6 +217,8 @@ const el = {
   stepComplete: document.getElementById('step-complete'),
   sockets: document.getElementById('sockets'),
   villageArt: document.getElementById('village-art'),
+  villageScene: document.getElementById('village-scene'),
+  questArt: document.getElementById('quest-art'),
   audioToggle: document.getElementById('audio-toggle'),
   reset: document.getElementById('reset'),
   toast: document.getElementById('toast'),
@@ -744,6 +740,13 @@ function highlightDropTargets(chain, tier) {
     const empty = !item;
     const matchingMerge = item && item.chain === chain && item.tier === tier && tier < CONFIG.maxTier;
     if (empty || matchingMerge) cell.classList.add('drop-valid');
+    if (matchingMerge) {
+      // Corner badge previewing what this merge would create
+      const preview = makeItemArt(getItem(chain, tier + 1), 0);
+      preview.classList.add('merge-preview');
+      preview.style.width = preview.style.height = '17px';
+      cell.appendChild(preview);
+    }
   });
   const step = RESTORATION_STEPS[state.restorationStep];
   if (step) {
@@ -758,6 +761,7 @@ function highlightDropTargets(chain, tier) {
 
 function clearDropTargets() {
   document.querySelectorAll('.drop-valid').forEach(e => e.classList.remove('drop-valid'));
+  document.querySelectorAll('.merge-preview').forEach(e => e.remove());
 }
 
 // ---- Quest / restoration / level ----
@@ -999,8 +1003,10 @@ function renderStats() {
 function renderQuest() {
   const def = getItem(state.questChain, state.questTier);
   const reward = QUEST_REWARDS[state.questTier];
+  el.questArt.src = def.art;
+  el.questArt.alt = def.name;
   el.questText.textContent = `Deliver a ${def.name}`;
-  el.questReward.textContent = `+${reward.coins} coins, +${reward.xp} XP · ${def.emoji} T${state.questTier}`;
+  el.questReward.textContent = `+${reward.coins} coins, +${reward.xp} XP · T${state.questTier}`;
   const hasItem = state.board.some(
     item => item && item.chain === state.questChain && item.tier === state.questTier
   );
@@ -1008,15 +1014,27 @@ function renderQuest() {
   el.questDeliver.style.opacity = hasItem ? '1' : '0.45';
 }
 
+// The scene index equals completed steps: village-0 (overgrown) through
+// village-5 (spirit tree awakened).
+function renderVillageScene() {
+  el.villageScene.src = 'art/village-' + state.restorationStep + '.svg';
+  el.villageArt.querySelectorAll('.tanabata-flank').forEach(n => n.remove());
+  if (state.hanami.tanabata) {
+    const flank = document.createElement('span');
+    flank.className = 'tanabata-flank';
+    flank.textContent = '🎋';
+    el.villageArt.appendChild(flank);
+  }
+}
+
 function renderRestoration() {
   const step = RESTORATION_STEPS[state.restorationStep];
+  renderVillageScene();
 
   if (!step) {
     el.stepNum.textContent = RESTORATION_STEPS.length;
     el.stepName.textContent = 'Village fully restored ✨';
     el.stepCost.textContent = '—';
-    const finalArt = RESTORATION_STEPS[RESTORATION_STEPS.length - 1].art;
-    el.villageArt.textContent = state.hanami.tanabata ? `🎋 ${finalArt} 🎋` : finalArt;
     el.sockets.innerHTML = '';
     el.stepComplete.disabled = true;
     el.stepComplete.style.opacity = '0.4';
@@ -1026,10 +1044,6 @@ function renderRestoration() {
   el.stepNum.textContent = state.restorationStep + 1;
   el.stepName.textContent = step.name;
   el.stepCost.textContent = step.coins;
-  const art = state.restorationStep === 0
-    ? VILLAGE_ART_INITIAL
-    : RESTORATION_STEPS[state.restorationStep - 1].art;
-  el.villageArt.textContent = state.hanami.tanabata ? `🎋 ${art} 🎋` : art;
 
   el.sockets.innerHTML = '';
   for (let i = 0; i < step.sockets.length; i++) {

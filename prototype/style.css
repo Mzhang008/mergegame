@@ -274,6 +274,17 @@ body.gold-glow .board {
   border-left: 4px solid var(--accent);
   box-shadow: var(--shadow);
 }
+.quest-art {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  background: #fff5f9;
+  border-radius: 10px;
+  padding: 2px;
+  box-shadow: inset 0 0 0 1.5px var(--accent-light);
+}
 .quest-info { flex: 1; min-width: 0; }
 .quest-label {
   font-size: 9px;
@@ -338,13 +349,27 @@ body.gold-glow .board {
   margin-top: 2px;
 }
 .rest-art {
-  font-size: 22px;
-  background: linear-gradient(135deg, #fffaeb, #fff5d6);
-  padding: 8px 12px;
+  position: relative;
   border-radius: 10px;
-  white-space: nowrap;
-  letter-spacing: 1px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08), var(--shadow);
+  line-height: 0;
+  flex-shrink: 0;
+}
+.rest-art img#village-scene {
+  width: 145px;
+  height: 58px;
+  display: block;
+  object-fit: cover;
+  transition: opacity 0.4s;
+}
+.tanabata-flank {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
 }
 .sockets {
   display: flex;
@@ -436,6 +461,39 @@ body.gold-glow .board {
   background: #e8ffe8;
   outline: 2px solid #5fb55f;
   outline-offset: -2px;
+}
+.merge-preview {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #fff;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: preview-pulse 1s ease-in-out infinite;
+  z-index: 3;
+}
+@keyframes preview-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* Desktop hover affordances (skipped on touch devices) */
+@media (hover: hover) {
+  .cell.has-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(217, 97, 138, 0.3);
+    z-index: 2;
+  }
+  .btn-gen:hover:not(:disabled),
+  .quest-deliver:hover:not(:disabled),
+  .rest-complete:hover:not(:disabled),
+  .event-item:hover:not(:disabled),
+  .dialogue-next:hover,
+  .btn-secondary:hover {
+    filter: brightness(1.06);
+  }
 }
 .cell .item {
   display: flex;
