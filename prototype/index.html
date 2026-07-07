@@ -6,7 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#ffe4ed">
-<title>Sakura Merge — Prototype v0.9</title>
+<title>Sakura Merge — Prototype v0.10</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="art/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="stylesheet" href="style.css">
 <script defer src="lib/twemoji.min.js"></script>
 </head>
@@ -97,9 +100,19 @@
 
   <div class="toast" id="toast"></div>
   <footer>
-    Sakura Merge · Prototype v0.9<br>
+    Sakura Merge · Prototype v0.10<br>
     <span class="hint">Drag to merge · Earn petals from T3+ merges · Spend them in the Hanami shop</span>
   </footer>
+</div>
+
+<div class="splash" id="splash">
+  <div class="splash-inner">
+    <img class="splash-logo" src="art/icon.svg" alt="" draggable="false">
+    <h1 class="splash-title">Sakura Merge</h1>
+    <div class="splash-sub">a hidden village awaits</div>
+    <div class="splash-hint">Tap to begin</div>
+  </div>
+  <div class="splash-version">prototype v0.10</div>
 </div>
 
 <div class="dialogue-overlay hidden" id="dialogue">

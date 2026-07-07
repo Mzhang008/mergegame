@@ -225,6 +225,7 @@ const el = {
   dialogue: document.getElementById('dialogue'),
   dialogueText: document.getElementById('dialogue-text'),
   dialogueNext: document.getElementById('dialogue-next'),
+  splash: document.getElementById('splash'),
   album: document.getElementById('album'),
   albumSlots: document.getElementById('album-slots'),
   blessing: document.getElementById('blessing'),
@@ -1015,9 +1016,16 @@ function renderQuest() {
 }
 
 // The scene index equals completed steps: village-0 (overgrown) through
-// village-5 (spirit tree awakened).
+// village-5 (spirit tree awakened). Scene changes crossfade.
 function renderVillageScene() {
-  el.villageScene.src = 'art/village-' + state.restorationStep + '.svg';
+  const next = 'art/village-' + state.restorationStep + '.svg';
+  if (!el.villageScene.src.endsWith(next)) {
+    el.villageScene.style.opacity = '0';
+    setTimeout(() => {
+      el.villageScene.src = next;
+      el.villageScene.style.opacity = '1';
+    }, 400);
+  }
   el.villageArt.querySelectorAll('.tanabata-flank').forEach(n => n.remove());
   if (state.hanami.tanabata) {
     const flank = document.createElement('span');
@@ -1125,11 +1133,36 @@ render();
 // Twemoji may load after our first render — re-parse once when it finishes.
 window.addEventListener('load', () => parseEmoji());
 
-if (!state.hasSeenIntro) {
-  setTimeout(() => {
-    state.hasSeenIntro = true;
-    showDialogue(HANA_INTRO);
-  }, 400);
-} else {
-  setTimeout(maybeShowBlessing, 600);
+// Splash: first tap doubles as the audio-unlock gesture, then the intro
+// (new player) or daily blessing (returning player) takes over.
+function spawnSplashPetals() {
+  for (let i = 0; i < 6; i++) {
+    const p = document.createElement('span');
+    p.className = 'falling-petal';
+    p.textContent = '🌸';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.animationDuration = (5 + Math.random() * 5) + 's';
+    p.style.animationDelay = (Math.random() * 4) + 's';
+    p.style.fontSize = (11 + Math.random() * 11) + 'px';
+    el.splash.appendChild(p);
+  }
+  parseEmoji(el.splash);
 }
+
+function dismissSplash() {
+  ensureAudio();
+  playTap();
+  el.splash.classList.add('hide');
+  setTimeout(() => el.splash.remove(), 600);
+  if (!state.hasSeenIntro) {
+    setTimeout(() => {
+      state.hasSeenIntro = true;
+      showDialogue(HANA_INTRO);
+    }, 350);
+  } else {
+    setTimeout(maybeShowBlessing, 450);
+  }
+}
+
+spawnSplashPetals();
+el.splash.addEventListener('click', dismissSplash, { once: true });

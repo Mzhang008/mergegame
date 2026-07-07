@@ -656,7 +656,87 @@ footer {
 .hint { font-size: 10px; opacity: 0.8; }
 
 /* Low energy warning */
-body.low-energy .stat:first-child .stat-val { color: #c44; }
+body.low-energy .stat:first-child .stat-val {
+  color: #c44;
+  animation: low-energy-pulse 1.4s ease-in-out infinite;
+}
+@keyframes low-energy-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Splash screen */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: linear-gradient(160deg, #ffe9f2 0%, #fcd3e2 55%, #f5b8d2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.5s ease-out;
+  overflow: hidden;
+}
+.splash.hide { opacity: 0; pointer-events: none; }
+.splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transform: translateY(-4vh);
+}
+.splash-logo {
+  width: 116px;
+  height: 116px;
+  border-radius: 26px;
+  box-shadow: 0 12px 34px rgba(217, 97, 138, 0.4);
+  -webkit-user-drag: none;
+  animation: splash-bob 3s ease-in-out infinite;
+}
+@keyframes splash-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.splash-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #a33d68;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.7);
+  margin-top: 8px;
+}
+.splash-sub {
+  font-size: 13px;
+  color: #b9718f;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+.splash-hint {
+  margin-top: 26px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(217, 97, 138, 0.85);
+  padding: 10px 26px;
+  border-radius: 22px;
+  box-shadow: 0 4px 14px rgba(217, 97, 138, 0.4);
+  animation: hint-pulse 1.8s ease-in-out infinite;
+}
+@keyframes hint-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.85; }
+}
+.splash-version {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #c288a3;
+}
+.splash .falling-petal { z-index: 301; }
 
 /* Drag ghost */
 .drag-ghost {
