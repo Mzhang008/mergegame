@@ -364,6 +364,7 @@ function playTone(freq, duration, type = 'sine', volume = 0.1, attack = 0.005) {
 }
 
 function playTap()      { playTone(600 + Math.random() * 80, 0.05, 'triangle', 0.07); }
+function playLift()     { playTone(500, 0.045, 'triangle', 0.05); }
 function playInvalid()  { playTone(180, 0.12, 'sawtooth', 0.06); }
 function playQuest()    { playTone(1000, 0.18, 'sine', 0.12); setTimeout(() => playTone(1500, 0.14, 'sine', 0.1), 70); }
 function playMerge(tier) {
@@ -552,17 +553,42 @@ function tapGenerator(chainName) {
 
 // ---- Drag & drop ----
 
+// iOS-home-screen feel: the lifted item springs up off its cell and trails
+// the pointer with eased inertia; valid targets swell as you hover; drops
+// spring into their destination instead of teleporting.
+
 const drag = {
   active: false,
+  settling: false,
   source: null,
   ghost: null,
   pointerId: null,
-  cancelling: false,
+  tx: 0, ty: 0,          // pointer target (viewport coords, touch offset applied)
+  gx: 0, gy: 0,          // ghost's current eased position
+  gscale: 1,
+  raf: 0,
+  hoverEl: null,
+  lastHoverX: -99, lastHoverY: -99,
 };
 
+const DRAG_LIFT_SCALE = 1.22;
+const DRAG_FOLLOW = 0.34;     // per-frame easing toward the pointer
+const DRAG_SETTLE_MS = 210;
+
+function pointerPoint(e) {
+  const offsetY = e.pointerType === 'touch' ? -55 : 0;
+  return { x: e.clientX, y: Math.max(8, e.clientY + offsetY) };
+}
+
+function applyGhostTransform() {
+  drag.ghost.style.transform =
+    `translate3d(${drag.gx}px, ${drag.gy}px, 0) translate(-50%, -50%) scale(${drag.gscale})`;
+}
+
 function onItemPointerDown(e, source) {
-  if (drag.active || drag.cancelling) return;
+  if (drag.active || drag.settling) return;
   ensureAudio();
+  playLift();
   drag.active = true;
   drag.source = source;
   drag.pointerId = e.pointerId;
@@ -572,9 +598,17 @@ function onItemPointerDown(e, source) {
   drag.ghost.className = 'drag-ghost';
   if (source.tier === CONFIG.maxTier) drag.ghost.classList.add('tier-7');
   drag.ghost.appendChild(makeItemArt(def));
-  document.body.appendChild(drag.ghost);
 
-  moveGhost(e.clientX, e.clientY, e.pointerType);
+  // Lift off from the item's resting spot, then ease toward the finger.
+  const rect = e.currentTarget.getBoundingClientRect();
+  drag.gx = rect.left + rect.width / 2;
+  drag.gy = rect.top + rect.height / 2;
+  drag.gscale = 1;
+  const p = pointerPoint(e);
+  drag.tx = p.x;
+  drag.ty = p.y;
+  applyGhostTransform();
+  document.body.appendChild(drag.ghost);
 
   if (source.type === 'cell') {
     state.draggingIdx = source.idx;
@@ -584,60 +618,118 @@ function onItemPointerDown(e, source) {
   render();
   highlightDropTargets(source.chain, source.tier);
 
+  drag.raf = requestAnimationFrame(dragFrame);
   e.preventDefault();
+}
+
+function dragFrame() {
+  if (!drag.active) return;
+  drag.gx += (drag.tx - drag.gx) * DRAG_FOLLOW;
+  drag.gy += (drag.ty - drag.gy) * DRAG_FOLLOW;
+  drag.gscale += (DRAG_LIFT_SCALE - drag.gscale) * 0.22;
+  applyGhostTransform();
+  // Re-hit-test only once the pointer has actually traveled a bit.
+  if (Math.abs(drag.tx - drag.lastHoverX) > 5 || Math.abs(drag.ty - drag.lastHoverY) > 5) {
+    drag.lastHoverX = drag.tx;
+    drag.lastHoverY = drag.ty;
+    updateHoverTarget();
+  }
+  drag.raf = requestAnimationFrame(dragFrame);
+}
+
+function updateHoverTarget() {
+  const t = getDropTarget(drag.tx, drag.ty);
+  let elNow = null;
+  if (t) {
+    const dom = dropTargetDom(t);
+    if (dom && dom.classList.contains('drop-valid')) elNow = dom;
+  }
+  if (elNow !== drag.hoverEl) {
+    if (drag.hoverEl) drag.hoverEl.classList.remove('drop-hover');
+    drag.hoverEl = elNow;
+    if (elNow) elNow.classList.add('drop-hover');
+  }
+}
+
+function clearHoverTarget() {
+  if (drag.hoverEl) drag.hoverEl.classList.remove('drop-hover');
+  drag.hoverEl = null;
+  drag.lastHoverX = drag.lastHoverY = -99;
+}
+
+function dropTargetDom(target) {
+  return target.type === 'cell'
+    ? document.querySelector(`.cell[data-idx="${target.idx}"]`)
+    : document.querySelector(`.socket[data-idx="${target.idx}"]`);
 }
 
 function onPointerMove(e) {
   if (!drag.active) return;
-  moveGhost(e.clientX, e.clientY, e.pointerType);
+  const p = pointerPoint(e);
+  drag.tx = p.x;
+  drag.ty = p.y;
 }
 
-function onPointerUp(e) {
+function onPointerUp() {
   if (!drag.active) return;
-  const target = getDropTarget(e.clientX, e.clientY);
+  // Hit-test where the ghost visually is (matters for the touch offset).
+  const target = getDropTarget(drag.tx, drag.ty);
   const success = target ? handleDrop(target) : false;
-  if (success) finishDrag();
-  else snapBackAndCleanup();
+  if (success) {
+    settleGhost(dropTargetDom(target), false);
+  } else {
+    const sourceEl = drag.source.type === 'cell'
+      ? document.querySelector(`.cell[data-idx="${drag.source.idx}"]`)
+      : document.querySelector(`.socket[data-idx="${drag.source.idx}"]`);
+    settleGhost(sourceEl, true);
+  }
+}
+
+// Spring the ghost into place (drop target on success, source on snap-back),
+// then commit the render.
+function settleGhost(targetEl, isSnapBack) {
+  cancelAnimationFrame(drag.raf);
+  drag.active = false;
+  clearDropTargets();
+  clearHoverTarget();
+
+  if (!drag.ghost || !targetEl) {
+    if (isSnapBack) restoreSource();
+    finishDrag();
+    return;
+  }
+
+  drag.settling = true;
+  const r = targetEl.getBoundingClientRect();
+  const g = drag.ghost;
+  g.classList.add('settle');
+  g.style.transform =
+    `translate3d(${r.left + r.width / 2}px, ${r.top + r.height / 2}px, 0) translate(-50%, -50%) scale(1)`;
+  if (isSnapBack) g.style.opacity = '0.4';
+  setTimeout(() => {
+    drag.settling = false;
+    if (isSnapBack) restoreSource();
+    finishDrag();
+  }, DRAG_SETTLE_MS);
+}
+
+function cancelDrag() {
+  if (!drag.active) return;
+  cancelAnimationFrame(drag.raf);
+  drag.active = false;
+  clearDropTargets();
+  clearHoverTarget();
+  restoreSource();
+  finishDrag();
 }
 
 function finishDrag() {
-  removeGhostImmediately();
+  if (drag.ghost) drag.ghost.remove();
+  drag.ghost = null;
   state.draggingIdx = null;
-  drag.active = false;
   drag.source = null;
-  clearDropTargets();
   render();
   saveState();
-}
-
-function snapBackAndCleanup() {
-  clearDropTargets();
-  if (!drag.ghost || !drag.source) {
-    restoreSource();
-    finishDrag();
-    return;
-  }
-  let sourceEl;
-  if (drag.source.type === 'cell') {
-    sourceEl = document.querySelector(`.cell[data-idx="${drag.source.idx}"]`);
-  } else {
-    sourceEl = document.querySelector(`.socket[data-idx="${drag.source.idx}"]`);
-  }
-  if (!sourceEl) {
-    restoreSource();
-    finishDrag();
-    return;
-  }
-  const rect = sourceEl.getBoundingClientRect();
-  drag.ghost.style.left = (rect.left + rect.width / 2) + 'px';
-  drag.ghost.style.top = (rect.top + rect.height / 2) + 'px';
-  drag.ghost.classList.add('snap-back');
-  drag.cancelling = true;
-  setTimeout(() => {
-    drag.cancelling = false;
-    restoreSource();
-    finishDrag();
-  }, 270);
 }
 
 function restoreSource() {
@@ -645,18 +737,6 @@ function restoreSource() {
   if (drag.source.type === 'socket') {
     state.restorationSockets[drag.source.idx] = { chain: drag.source.chain, tier: drag.source.tier };
   }
-}
-
-function removeGhostImmediately() {
-  if (drag.ghost) drag.ghost.remove();
-  drag.ghost = null;
-}
-
-function moveGhost(x, y, pointerType) {
-  if (!drag.ghost) return;
-  const offsetY = pointerType === 'touch' ? -55 : 0;
-  drag.ghost.style.left = x + 'px';
-  drag.ghost.style.top = (y + offsetY) + 'px';
 }
 
 function getDropTarget(x, y) {
@@ -1124,7 +1204,7 @@ el.dialogue.addEventListener('click', e => {
 
 document.addEventListener('pointermove', onPointerMove);
 document.addEventListener('pointerup', onPointerUp);
-document.addEventListener('pointercancel', () => { if (drag.active) { restoreSource(); finishDrag(); } });
+document.addEventListener('pointercancel', cancelDrag);
 
 setInterval(() => { regenEnergy(); saveState(); }, CONFIG.energyRegenMs);
 applyHanamiCosmetics();

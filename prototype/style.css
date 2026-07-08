@@ -461,6 +461,22 @@ body.gold-glow .board {
   background: #e8ffe8;
   outline: 2px solid #5fb55f;
   outline-offset: -2px;
+  transition: background 0.15s, transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.16s;
+}
+.cell.drop-hover {
+  transform: scale(1.1);
+  background: #d6ffd6;
+  outline-color: #3fa53f;
+  box-shadow: 0 5px 14px rgba(63, 165, 63, 0.35);
+  z-index: 4;
+}
+.cell.drop-hover .item img {
+  transform: scale(1.14);
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.socket.drop-hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 12px rgba(63, 165, 63, 0.35);
 }
 .merge-preview {
   position: absolute;
@@ -738,27 +754,33 @@ body.low-energy .stat:first-child .stat-val {
 }
 .splash .falling-petal { z-index: 301; }
 
-/* Drag ghost */
+/* Drag ghost — positioned purely via transform, eased per-frame in JS */
 .drag-ghost {
   position: fixed;
+  left: 0;
+  top: 0;
   pointer-events: none;
   z-index: 1000;
-  transform: translate(-50%, -50%);
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
-  opacity: 0.92;
-  line-height: 1;
+  will-change: transform;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
+  opacity: 0.96;
+  line-height: 0;
 }
 .drag-ghost.tier-7 {
-  filter: drop-shadow(0 0 10px var(--gold)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(0 0 10px var(--gold)) drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
 }
-.drag-ghost.snap-back {
-  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-              top 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.25s ease-out,
-              transform 0.25s ease-out;
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.7);
+.drag-ghost img {
+  animation: ghost-jiggle 0.38s ease-in-out infinite alternate;
 }
+@keyframes ghost-jiggle {
+  from { transform: rotate(-2.4deg); }
+  to   { transform: rotate(2.4deg); }
+}
+.drag-ghost.settle {
+  transition: transform 0.21s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.21s ease-out;
+}
+.drag-ghost.settle img { animation: none; }
 
 /* Level-up particles */
 .particle {
