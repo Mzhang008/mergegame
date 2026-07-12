@@ -68,6 +68,13 @@ const CHAINS = {
 const CHAIN_NAMES = Object.keys(CHAINS);
 function getItem(chain, tier) { return CHAINS[chain].tiers[tier]; }
 
+// Particle palettes for merge bursts, per chain.
+const CHAIN_FX = {
+  sakura:  ['#f7a8c8', '#f291bd', '#ffffff'],
+  sushi:   ['#f5d76e', '#f28c6b', '#ffffff'],
+  lantern: ['#e8574a', '#f5c542', '#ffffff'],
+};
+
 // Build an <img> for an item's anime-style SVG art. Size derives from the
 // tier's legacy font-size value so the visual scale progression is kept.
 function makeItemArt(def, sizeBoost = 10) {
@@ -382,6 +389,11 @@ function playRestoration() {
   setTimeout(() => playTone(988, 0.6, 'sine', 0.11, 0.01), 200);
 }
 
+// Haptic tick where supported (Android Chrome; silently ignored elsewhere).
+function buzz(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
 // ---- Dialogue ----
 
 let dialogueQueue = [];
@@ -452,9 +464,12 @@ function claimBlessing() {
   state.blessingStreak = pendingBlessingStreak;
   state.lastBlessingDate = localDateStr();
   pendingBlessingStreak = 0;
+  flyRewards(el.blessingClaim, el.coins, 6);
   el.blessing.classList.add('hidden');
   toast(`+${r.coins} coins · +${r.energy} ⚡`, 'success');
   playQuest();
+  buzz(20);
+  bumpStat(el.energy);
   spawnParticles(el.energy, 12, ['#ffd700', '#fff', '#ff79b4']);
   renderStats();
   saveState();
@@ -465,6 +480,7 @@ function claimBlessing() {
 function earnPetals(n) {
   state.petals += n;
   renderEvent();
+  bumpStat(el.petals && el.petals.parentElement);
 }
 
 function buyHanami(id) {
@@ -729,6 +745,15 @@ function finishDrag() {
   state.draggingIdx = null;
   drag.source = null;
   render();
+  if (drag.mergeFx) {
+    const fx = drag.mergeFx;
+    drag.mergeFx = null;
+    const cellEl = document.querySelector(`.cell[data-idx="${fx.idx}"]`);
+    const colors = fx.tier === CONFIG.maxTier
+      ? CHAIN_FX[fx.chain].concat('#ffd700')
+      : CHAIN_FX[fx.chain];
+    spawnParticles(cellEl, Math.min(6 + fx.tier * 2, 18), colors);
+  }
   saveState();
 }
 
@@ -774,12 +799,14 @@ function dropOnCell(src, toIdx) {
     const newTier = src.tier + 1;
     state.board[toIdx] = { chain: src.chain, tier: newTier };
     state.mergedCell = toIdx;
+    drag.mergeFx = { idx: toIdx, tier: newTier, chain: src.chain };
     const next = getItem(src.chain, newTier);
     const msg = (newTier === CONFIG.maxTier)
       ? `★ ${next.name} forged!`
       : `Merged → ${next.name} (T${newTier})`;
     toast(msg, 'success');
     playMerge(newTier);
+    buzz(newTier === CONFIG.maxTier ? 40 : 12);
     if (newTier >= 3) earnPetals(newTier - 2);
     if (newTier === CONFIG.maxTier) checkAlbumProgress(src.chain);
     return true;
@@ -860,6 +887,7 @@ function completeStep() {
   initSockets();
   toast(`★ ${step.name} restored!`, 'success');
   playRestoration();
+  buzz([25, 50, 25]);
   spawnParticles(el.villageArt, 14, ['#ffd700', '#ffaa44', '#ff79b4', '#ffffff']);
   if (state.restorationStep >= RESTORATION_STEPS.length) {
     setTimeout(() => toast('✨ Village fully restored ✨', 'success'), 900);
@@ -885,6 +913,9 @@ function deliverQuest() {
   state.xp += reward.xp;
   toast(`+${reward.coins} coins · +${reward.xp} XP`, 'success');
   playQuest();
+  buzz(15);
+  flyRewards(el.questDeliver, el.coins, 5);
+  bumpStat(el.xp);
 
   let leveled = false;
   const startLevel = state.level;
@@ -898,6 +929,8 @@ function deliverQuest() {
     setTimeout(() => {
       toast(`Level up! → ${state.level}`, 'success');
       playLevelUp();
+      buzz([20, 60, 20]);
+      bumpStat(el.level);
       spawnParticles(el.level, 16, ['#ffd700', '#ff79b4', '#fff', '#ffaa44']);
     }, 600);
     if (expanded) {
@@ -983,6 +1016,58 @@ function spawnParticles(target, count = 12, colors = ['#ffd700', '#ff79b4', '#ff
   }
 }
 
+// ---- Reward juice ----
+
+function bumpStat(elm) {
+  if (!elm) return;
+  elm.classList.remove('bump');
+  void elm.offsetWidth;
+  elm.classList.add('bump');
+}
+
+// Fly a stream of coins from one element to another, then bump the target.
+function flyRewards(fromEl, toEl, count = 5) {
+  if (!fromEl || !toEl) return;
+  const f = fromEl.getBoundingClientRect();
+  const t = toEl.getBoundingClientRect();
+  const fx = f.left + f.width / 2, fy = f.top + f.height / 2;
+  const dxTotal = (t.left + t.width / 2) - fx;
+  const dyTotal = (t.top + t.height / 2) - fy;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'fly-coin';
+    p.style.left = fx + 'px';
+    p.style.top = fy + 'px';
+    document.body.appendChild(p);
+    const scatterX = (Math.random() - 0.5) * 70;
+    const scatterY = (Math.random() - 0.5) * 30 - 24;
+    const anim = p.animate([
+      { transform: 'translate(0, 0) scale(0.5)', opacity: 0 },
+      { transform: `translate(${scatterX}px, ${scatterY}px) scale(1)`, opacity: 1, offset: 0.3 },
+      { transform: `translate(${dxTotal}px, ${dyTotal}px) scale(0.45)`, opacity: 0.9 },
+    ], {
+      duration: 500 + i * 60,
+      delay: i * 45,
+      easing: 'cubic-bezier(0.5, -0.1, 0.72, 0.4)',
+      fill: 'backwards',
+    });
+    anim.onfinish = () => {
+      p.remove();
+      if (i === count - 1) bumpStat(toEl);
+    };
+  }
+}
+
+// One-shot entrance cascade after the splash dismisses.
+function playBoardEntrance() {
+  document.querySelectorAll('.cell').forEach((c, i) => {
+    c.style.animation = `cell-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 6}ms backwards`;
+  });
+  setTimeout(() => {
+    document.querySelectorAll('.cell').forEach(c => { c.style.animation = ''; });
+  }, 900);
+}
+
 // ---- Rendering ----
 
 function render() {
@@ -1065,6 +1150,10 @@ function renderBoard() {
     frag.appendChild(cell);
   }
   el.board.appendChild(frag);
+
+  // Nudge the player toward the generators when there is nothing to merge.
+  const boardEmpty = state.board.every(item => !item);
+  document.querySelector('.generators').classList.toggle('gen-hint', boardEmpty);
 
   requestAnimationFrame(() => {
     state.spawnedCells.clear();
@@ -1234,6 +1323,7 @@ function dismissSplash() {
   playTap();
   el.splash.classList.add('hide');
   setTimeout(() => el.splash.remove(), 600);
+  playBoardEntrance();
   if (!state.hasSeenIntro) {
     setTimeout(() => {
       state.hasSeenIntro = true;

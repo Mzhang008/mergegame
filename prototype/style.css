@@ -754,6 +754,21 @@ body.low-energy .stat:first-child .stat-val {
 }
 .splash .falling-petal { z-index: 301; }
 
+/* Respect reduced-motion preferences: keep transitions, drop the loops */
+@media (prefers-reduced-motion: reduce) {
+  .drag-ghost img,
+  .splash-logo,
+  .splash-hint,
+  .merge-preview,
+  .album-slot.earned,
+  .generators.gen-hint .btn-gen,
+  body.low-energy .stat:first-child .stat-val {
+    animation: none !important;
+  }
+  .falling-petal { display: none; }
+  .cell.tier-7 .item { animation: none; }
+}
+
 /* Drag ghost — positioned purely via transform, eased per-frame in JS */
 .drag-ghost {
   position: fixed;
@@ -781,6 +796,47 @@ body.low-energy .stat:first-child .stat-val {
               opacity 0.21s ease-out;
 }
 .drag-ghost.settle img { animation: none; }
+
+/* Flying coin rewards */
+.fly-coin {
+  position: fixed;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff2b8, #f5c542);
+  border: 1.5px solid #d9a441;
+  box-shadow: 0 0 6px rgba(245, 197, 66, 0.7);
+  z-index: 900;
+  pointer-events: none;
+}
+
+/* Stat bump on reward */
+.stat-val.bump,
+.event-petals.bump {
+  animation: stat-bump 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes stat-bump {
+  30% { transform: scale(1.35); color: var(--accent); }
+}
+
+/* Board entrance cascade (one-shot after splash) */
+@keyframes cell-in {
+  from { opacity: 0; transform: scale(0.6) translateY(10px); }
+}
+
+/* Generator nudge when the board is empty */
+.generators.gen-hint .btn-gen {
+  animation: gen-pulse 1.7s ease-in-out infinite;
+}
+.generators.gen-hint .btn-gen:nth-child(2) { animation-delay: 0.2s; }
+.generators.gen-hint .btn-gen:nth-child(3) { animation-delay: 0.4s; }
+/* Glow-only pulse: never animate transform on tap targets, or fingers
+   (and test runners) miss the moving button. */
+@keyframes gen-pulse {
+  0%, 100% { box-shadow: var(--shadow); filter: brightness(1); }
+  50% { box-shadow: 0 4px 18px rgba(217, 97, 138, 0.55); filter: brightness(1.07); }
+}
 
 /* Level-up particles */
 .particle {
