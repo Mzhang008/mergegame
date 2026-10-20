@@ -7,7 +7,7 @@ const CONFIG = {
   cols: 7,
   energyMax: 120,
   energyStart: 120,
-  energyRegenMs: 4000,
+  energyRegenMs: 20000,
   energyPerTap: 1,
   itemsPerTapMin: 1,
   itemsPerTapMax: 3,
@@ -17,6 +17,7 @@ const CONFIG = {
   spawnStaggerMs: 80,
   storageKey: 'sakuraMerge_save',
   storageVersion: 6,
+  version: '1.0.0',
 };
 
 // Prototype values - GDD calls for L10 and L25 in production.
@@ -79,18 +80,27 @@ const CHAIN_FX = {
   tea:    ['#8bc34a', '#c5e1a5', '#ffffff'],
 };
 
-// Build an <img> for an item's icon. Size derives from the tier's display
-// scale so higher tiers read as visibly bigger.
-function makeItemArt(def, sizeBoost = 10) {
+// Fraction of a cell an item fills; higher tiers read as visibly bigger.
+function tierScale(def) { return (def.size + 10) / 60; }
+
+// Build an <img> for an item's icon. `size` is pixels (number) or any CSS
+// length (string); by default it is a tier-scaled percentage of the
+// container, so board items shrink with the board on small screens.
+function makeItemArt(def, size) {
   const img = document.createElement('img');
   img.className = 'item-art';
   img.src = def.art;
   img.alt = def.name;
   img.draggable = false;
-  const px = def.size + sizeBoost;
-  img.style.width = px + 'px';
-  img.style.height = px + 'px';
+  size = typeof size === 'number' ? size + 'px' : size || Math.round(tierScale(def) * 100) + '%';
+  img.style.width = size;
+  img.style.height = size;
   return img;
+}
+
+function cellSize() {
+  const c = el.board.querySelector('.cell');
+  return c ? c.getBoundingClientRect().width : 48;
 }
 
 const QUEST_REWARDS = {
@@ -188,6 +198,8 @@ function makeInitialState() {
   const rows = CONFIG.baseBoardRows;
   return {
     energy: CONFIG.energyStart,
+    // Wall-clock time the next energy point started accruing from.
+    regenAnchor: Date.now(),
     coins: 0,
     xp: 0,
     level: 1,
@@ -206,45 +218,65 @@ function makeInitialState() {
     spawnedCells: new Set(),
     spawnOrder: [],
     mergedCell: null,
+    hapticsOn: true,
+    analyticsOn: true,
+    firstPlayDate: null,
+    analyticsSent: {},
     audioOn: true,
     hasSeenIntro: false,
   };
 }
 const state = makeInitialState();
 
+const $ = id => document.getElementById(id);
 const el = {
-  board: document.getElementById('board'),
-  energy: document.getElementById('energy'),
-  coins: document.getElementById('coins'),
-  xp: document.getElementById('xp'),
-  level: document.getElementById('level'),
-  questText: document.getElementById('quest-text'),
-  questReward: document.getElementById('quest-reward'),
-  questDeliver: document.getElementById('quest-deliver'),
-  stepNum: document.getElementById('step-num'),
-  stepTotal: document.getElementById('step-total'),
-  stepName: document.getElementById('step-name'),
-  stepCost: document.getElementById('step-cost'),
-  stepComplete: document.getElementById('step-complete'),
-  sockets: document.getElementById('sockets'),
-  villageArt: document.getElementById('village-art'),
-  villageScene: document.getElementById('village-scene'),
-  questArt: document.getElementById('quest-art'),
-  audioToggle: document.getElementById('audio-toggle'),
-  reset: document.getElementById('reset'),
-  toast: document.getElementById('toast'),
-  dialogue: document.getElementById('dialogue'),
-  dialogueText: document.getElementById('dialogue-text'),
-  dialogueNext: document.getElementById('dialogue-next'),
-  splash: document.getElementById('splash'),
-  album: document.getElementById('album'),
-  albumSlots: document.getElementById('album-slots'),
-  blessing: document.getElementById('blessing'),
-  blessingDay: document.getElementById('blessing-day'),
-  blessingText: document.getElementById('blessing-text'),
-  blessingClaim: document.getElementById('blessing-claim'),
-  petals: document.getElementById('petals'),
-  eventShop: document.getElementById('event-shop'),
+  board: $('board'),
+  energy: $('energy'),
+  energyTimer: $('energy-timer'),
+  coins: $('coins'),
+  petals: $('petals'),
+  level: $('level'),
+  xpFill: $('xp-fill'),
+  menuBtn: $('menu-btn'),
+  menuDot: $('menu-dot'),
+  quest: $('quest'),
+  questArt: $('quest-art'),
+  questText: $('quest-text'),
+  questReward: $('quest-reward'),
+  questDeliver: $('quest-deliver'),
+  questSkip: $('quest-skip'),
+  restCard: $('restoration'),
+  stepNum: $('step-num'),
+  stepTotal: $('step-total'),
+  stepName: $('step-name'),
+  stepCost: $('step-cost'),
+  stepComplete: $('step-complete'),
+  sockets: $('sockets'),
+  villageArt: $('village-art'),
+  villageScene: $('village-scene'),
+  generators: document.querySelector('.generators'),
+  toast: $('toast'),
+  sheet: $('sheet'),
+  sheetClose: $('sheet-close'),
+  albumSlots: $('album-slots'),
+  villageLarge: $('village-large'),
+  villageCaption: $('village-caption'),
+  petalsSheet: $('petals-sheet'),
+  eventShop: $('event-shop'),
+  setSound: $('set-sound'),
+  setHaptics: $('set-haptics'),
+  setAnalytics: $('set-analytics'),
+  setAnalyticsRow: $('set-analytics-row'),
+  reset: $('reset'),
+  version: $('version'),
+  dialogue: $('dialogue'),
+  dialogueText: $('dialogue-text'),
+  dialogueNext: $('dialogue-next'),
+  splash: $('splash'),
+  blessing: $('blessing'),
+  blessingDay: $('blessing-day'),
+  blessingText: $('blessing-text'),
+  blessingClaim: $('blessing-claim'),
 };
 
 // ---- Persistence ----
@@ -290,6 +322,7 @@ function saveState() {
       version: CONFIG.storageVersion,
       ts: Date.now(),
       energy: state.energy,
+      regenAnchor: state.regenAnchor,
       coins: state.coins,
       xp: state.xp,
       level: state.level,
@@ -305,6 +338,10 @@ function saveState() {
       petals: state.petals,
       hanami: state.hanami,
       audioOn: state.audioOn,
+      hapticsOn: state.hapticsOn,
+      analyticsOn: state.analyticsOn,
+      firstPlayDate: state.firstPlayDate,
+      analyticsSent: state.analyticsSent,
       hasSeenIntro: state.hasSeenIntro,
     }));
   } catch (e) { /* storage full or disabled - skip */ }
@@ -351,13 +388,15 @@ function loadState() {
     const hanami = snap.hanami || {};
     HANAMI_SHOP.forEach(({ id }) => { state.hanami[id] = !!hanami[id]; });
     state.audioOn = typeof snap.audioOn === 'boolean' ? snap.audioOn : true;
+    state.hapticsOn = typeof snap.hapticsOn === 'boolean' ? snap.hapticsOn : true;
+    state.analyticsOn = typeof snap.analyticsOn === 'boolean' ? snap.analyticsOn : true;
+    state.firstPlayDate = typeof snap.firstPlayDate === 'string' ? snap.firstPlayDate : null;
+    state.analyticsSent = snap.analyticsSent && typeof snap.analyticsSent === 'object' ? snap.analyticsSent : {};
     state.hasSeenIntro = !!snap.hasSeenIntro;
 
-    if (snap.ts) {
-      const elapsedSec = (Date.now() - snap.ts) / 1000;
-      const regen = Math.floor(elapsedSec / (CONFIG.energyRegenMs / 1000));
-      if (regen > 0) state.energy = Math.min(CONFIG.energyMax, state.energy + regen);
-    }
+    // Older saves have no anchor; their last-save time is the closest guess.
+    state.regenAnchor = Math.min(Date.now(), snap.regenAnchor || snap.ts || Date.now());
+    syncEnergy();
     return true;
   } catch (e) {
     return false;
@@ -414,7 +453,71 @@ function playRestoration() {
 
 // Haptic tick where supported (Android Chrome; silently ignored elsewhere).
 function buzz(pattern) {
-  if (navigator.vibrate) navigator.vibrate(pattern);
+  if (state.hapticsOn && navigator.vibrate) navigator.vibrate(pattern);
+}
+
+// ---- Analytics (GoatCounter, privacy-friendly) ----
+// Off unless ANALYTICS.goatcounterCode is set. No cookies, no third-party
+// script: events go straight to GoatCounter's /count endpoint, the same
+// request its official count.js makes. Nothing is sent when the player opts
+// out, the browser sends Global Privacy Control or Do Not Track, or the game
+// runs on localhost.
+const ANALYTICS = {
+  goatcounterCode: '',   // e.g. 'sakuramerge' for https://sakuramerge.goatcounter.com
+};
+const sentThisSession = new Set();
+
+function analyticsConfigured() { return !!ANALYTICS.goatcounterCode; }
+
+function browserAsksNotToTrack() {
+  return navigator.globalPrivacyControl === true
+    || navigator.doNotTrack === '1' || window.doNotTrack === '1';
+}
+
+function analyticsAllowed() {
+  return analyticsConfigured() && state.analyticsOn && !browserAsksNotToTrack()
+    && !/^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname)
+    && location.protocol !== 'file:';
+}
+
+function sendCount(path, title, isEvent) {
+  const params = new URLSearchParams({
+    p: path,
+    t: title,
+    s: String(window.screen.width),
+    rnd: Math.random().toString(36).slice(2, 7),
+  });
+  if (isEvent) params.set('e', 'true');
+  else if (document.referrer) params.set('r', document.referrer);
+  const url = `https://${ANALYTICS.goatcounterCode}.goatcounter.com/count?${params}`;
+  if (!navigator.sendBeacon || !navigator.sendBeacon(url)) new Image().src = url;
+}
+
+// once: 'ever' = first time per player, 'session' = once per page load.
+function track(name, { once } = {}) {
+  if (once === 'ever' && state.analyticsSent[name]) return;
+  if (once === 'session' && sentThisSession.has(name)) return;
+  if (once === 'ever') state.analyticsSent[name] = true;
+  if (once === 'session') sentThisSession.add(name);
+  if (!analyticsAllowed()) return;
+  sendCount(name, name.replace(/-/g, ' '), true);
+}
+
+function daysBetween(a, b) {
+  return Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 86400000);
+}
+
+// One pageview per session, plus anonymous day-N return events so D1/D7
+// retention can be read off the dashboard without identifying anyone.
+function trackSessionStart() {
+  const today = localDateStr();
+  if (!state.firstPlayDate) {
+    state.firstPlayDate = today;
+    track('first-open', { once: 'ever' });
+  }
+  const day = daysBetween(state.firstPlayDate, today);
+  if ([1, 3, 7, 14, 30].includes(day)) track(`return-d${day}`, { once: 'ever' });
+  if (analyticsAllowed()) sendCount('/', 'Sakura Merge', false);
 }
 
 // ---- Dialogue ----
@@ -429,6 +532,7 @@ function showDialogue(lines) {
 function advanceDialogue() {
   if (dialogueQueue.length === 0) {
     el.dialogue.classList.add('hidden');
+    if (state.hasSeenIntro) track('tutorial-complete', { once: 'ever' });
     saveState();
     return;
   }
@@ -440,8 +544,8 @@ function advanceDialogue() {
 // ---- Board layout / album / sockets ----
 
 function applyBoardLayout() {
-  el.board.style.gridTemplateRows = `repeat(${state.boardRows}, 1fr)`;
-  el.board.style.aspectRatio = `${CONFIG.cols} / ${state.boardRows}`;
+  el.board.style.setProperty('--cols', CONFIG.cols);
+  el.board.style.setProperty('--rows', state.boardRows);
 }
 
 function expandBoardForLevels(fromLevel, toLevel) {
@@ -494,6 +598,7 @@ function claimBlessing() {
   buzz(20);
   bumpStat(el.energy);
   spawnParticles(el.energy, 12, ['#ffd700', '#fff', '#ff79b4']);
+  track(`blessing-day-${state.blessingStreak}`);
   renderStats();
   saveState();
 }
@@ -502,8 +607,9 @@ function claimBlessing() {
 
 function earnPetals(n) {
   state.petals += n;
+  renderStats();
   renderEvent();
-  bumpStat(el.petals && el.petals.parentElement);
+  bumpStat(el.petals);
 }
 
 function buyHanami(id) {
@@ -515,7 +621,9 @@ function buyHanami(id) {
   applyHanamiCosmetics();
   toast(`${item.emoji} ${item.name} unlocked!`, 'success');
   playRestoration();
-  if (el.eventShop) spawnParticles(el.eventShop, 14, ['#ff79b4', '#ffd700', '#fff']);
+  spawnParticles(el.petalsSheet, 14, ['#ff79b4', '#ffd700', '#fff']);
+  track(`hanami-${id}`, { once: 'ever' });
+  renderStats();
   renderEvent();
   renderRestoration();
   saveState();
@@ -545,11 +653,49 @@ function checkAlbumProgress(chain) {
   if (state.spiritAlbum[chain]) return;
   state.spiritAlbum[chain] = true;
   const tier7 = CHAINS[chain].tiers[CONFIG.maxTier];
+  track(`album-${chain}`, { once: 'ever' });
+  if (CHAIN_NAMES.every(c => state.spiritAlbum[c])) track('album-complete', { once: 'ever' });
   setTimeout(() => {
     toast(`✨ ${tier7.name} added to your Album!`, 'success');
     playLevelUp();
-    if (el.album) spawnParticles(el.album, 18, ['#ffd700', '#ff79b4', '#fff', '#ffaa44']);
+    spawnParticles(el.menuBtn, 18, ['#ffd700', '#ff79b4', '#fff', '#ffaa44']);
   }, 700);
+}
+
+// ---- Menu sheet: album, festival, settings ----
+
+function openSheet(tab = 'album') {
+  selectSheetTab(tab);
+  renderAlbum();
+  renderEvent();
+  renderSettings();
+  el.sheet.classList.remove('hidden');
+  parseEmoji(el.sheet);
+}
+
+function closeSheet() {
+  el.sheet.classList.add('hidden');
+}
+
+function selectSheetTab(tab) {
+  el.sheet.querySelectorAll('.sheet-tab').forEach(b => {
+    const on = b.dataset.tab === tab;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  el.sheet.querySelectorAll('.sheet-panel').forEach(p => {
+    p.classList.toggle('hidden', p.dataset.panel !== tab);
+  });
+}
+
+function renderSettings() {
+  el.setSound.checked = state.audioOn;
+  el.setHaptics.checked = state.hapticsOn;
+  el.setAnalyticsRow.classList.toggle('hidden', !analyticsConfigured());
+  const blocked = browserAsksNotToTrack();
+  el.setAnalytics.checked = state.analyticsOn && !blocked;
+  el.setAnalytics.disabled = blocked;
+  el.version.textContent = `Sakura Merge v${CONFIG.version}`;
 }
 
 function initSockets() {
@@ -567,9 +713,18 @@ function emptyCellIndices() {
 
 function tapGenerator(chainName) {
   ensureAudio();
-  if (state.energy < CONFIG.energyPerTap) { playInvalid(); return toast('Out of energy!', 'warn'); }
+  syncEnergy();
+  if (state.energy < CONFIG.energyPerTap) {
+    playInvalid();
+    track('out-of-energy', { once: 'session' });
+    return toast(`Out of energy — +1 every ${CONFIG.energyRegenMs / 1000}s`, 'warn');
+  }
   const empties = emptyCellIndices();
-  if (empties.length === 0) { playInvalid(); return toast('Board is full', 'warn'); }
+  if (empties.length === 0) {
+    playInvalid();
+    track('board-full', { once: 'session' });
+    return toast('Board is full — merge, deliver, or sell something', 'warn');
+  }
 
   state.energy -= CONFIG.energyPerTap;
   const range = CONFIG.itemsPerTapMax - CONFIG.itemsPerTapMin + 1;
@@ -636,7 +791,7 @@ function onItemPointerDown(e, source) {
   drag.ghost = document.createElement('div');
   drag.ghost.className = 'drag-ghost';
   if (source.tier === CONFIG.maxTier) drag.ghost.classList.add('tier-7');
-  drag.ghost.appendChild(makeItemArt(def));
+  drag.ghost.appendChild(makeItemArt(def, Math.round(cellSize() * tierScale(def))));
 
   // Lift off from the item's resting spot, then ease toward the finger.
   const rect = e.currentTarget.getBoundingClientRect();
@@ -873,9 +1028,8 @@ function highlightDropTargets(chain, tier) {
     if (empty || matchingMerge) cell.classList.add('drop-valid');
     if (matchingMerge) {
       // Corner badge previewing what this merge would create
-      const preview = makeItemArt(getItem(chain, tier + 1), 0);
+      const preview = makeItemArt(getItem(chain, tier + 1), Math.max(14, Math.round(cellSize() * 0.36)));
       preview.classList.add('merge-preview');
-      preview.style.width = preview.style.height = '17px';
       cell.appendChild(preview);
     }
   });
@@ -902,7 +1056,7 @@ function completeStep() {
   const step = RESTORATION_STEPS[state.restorationStep];
   if (!step) return;
   const allFilled = state.restorationSockets.every(s => s !== null);
-  if (!allFilled) return toast('Fill the sockets first', 'warn');
+  if (!allFilled) return toast('Drag the items shown into the empty spots first', 'warn');
   if (state.coins < step.coins) return toast(`Need ${step.coins - state.coins} more coins`, 'warn');
 
   state.coins -= step.coins;
@@ -912,6 +1066,7 @@ function completeStep() {
   playRestoration();
   buzz([25, 50, 25]);
   spawnParticles(el.villageArt, 14, ['#ffd700', '#ffaa44', '#ff79b4', '#ffffff']);
+  track(`restoration-${state.restorationStep}`, { once: 'ever' });
   if (state.restorationStep >= RESTORATION_STEPS.length) {
     setTimeout(() => toast('✨ Village fully restored ✨', 'success'), 900);
   }
@@ -938,7 +1093,6 @@ function deliverQuest() {
   playQuest();
   buzz(15);
   flyRewards(el.questDeliver, el.coins, 5);
-  bumpStat(el.xp);
 
   let leveled = false;
   const startLevel = state.level;
@@ -948,6 +1102,9 @@ function deliverQuest() {
     leveled = true;
   }
   if (leveled) {
+    for (let lvl = startLevel + 1; lvl <= state.level; lvl++) {
+      if (lvl % 5 === 0) track(`level-${lvl}`, { once: 'ever' });
+    }
     const expanded = expandBoardForLevels(startLevel, state.level);
     setTimeout(() => {
       toast(`Level up! → ${state.level}`, 'success');
@@ -977,43 +1134,68 @@ function pickNextQuest() {
   else if (lvl < 10) tierCandidates = [3, 4, 5];
   else if (lvl < 15) tierCandidates = [4, 5, 6];
   else tierCandidates = [5, 6, 7];
-  state.questChain = CHAIN_NAMES[Math.floor(Math.random() * CHAIN_NAMES.length)];
-  state.questTier = tierCandidates[Math.floor(Math.random() * tierCandidates.length)];
+  const prev = state.questChain + state.questTier;
+  for (let tries = 0; tries < 6; tries++) {
+    state.questChain = CHAIN_NAMES[Math.floor(Math.random() * CHAIN_NAMES.length)];
+    state.questTier = tierCandidates[Math.floor(Math.random() * tierCandidates.length)];
+    if (state.questChain + state.questTier !== prev) break;
+  }
+}
+
+// Free re-roll so a hard order never stalls a player.
+function skipQuest() {
+  ensureAudio();
+  pickNextQuest();
+  playTap();
+  track('quest-skip', { once: 'session' });
+  renderQuest();
+  parseEmoji(el.quest);
+  saveState();
 }
 
 function xpForNextLevel(level) {
   return Math.floor(CONFIG.xpCurveBase * Math.pow(level, CONFIG.xpCurveExp));
 }
 
-function regenEnergy() {
-  if (state.energy < CONFIG.energyMax) {
-    state.energy = Math.min(CONFIG.energyMax, state.energy + 1);
-    renderStats();
+// Energy accrues from the wall clock, so a backgrounded (timer-throttled) or
+// closed tab regenerates exactly as fast as an open one.
+function syncEnergy(now = Date.now()) {
+  if (state.energy >= CONFIG.energyMax) {
+    state.regenAnchor = now;
+    return false;
   }
+  const gained = Math.floor((now - state.regenAnchor) / CONFIG.energyRegenMs);
+  if (gained <= 0) return false;
+  state.energy = Math.min(CONFIG.energyMax, state.energy + gained);
+  state.regenAnchor = state.energy >= CONFIG.energyMax
+    ? now
+    : state.regenAnchor + gained * CONFIG.energyRegenMs;
+  return true;
+}
+
+function tick() {
+  const changed = syncEnergy();
+  renderStats();
+  if (changed) saveState();
 }
 
 function resetGame() {
-  const hasProgress = state.coins > 0 || state.xp > 0 || state.restorationStep > 0 || state.level > 1;
-  if (hasProgress && !confirm('Reset all progress? This cannot be undone.')) return;
-  Object.assign(state, makeInitialState());
+  if (!confirm('Reset all progress? Your village, items, coins and album will be lost. This cannot be undone.')) return;
+  // Settings and analytics bookkeeping survive a progress reset.
+  const keep = {
+    audioOn: state.audioOn, hapticsOn: state.hapticsOn, analyticsOn: state.analyticsOn,
+    firstPlayDate: state.firstPlayDate, analyticsSent: state.analyticsSent,
+  };
+  Object.assign(state, makeInitialState(), keep);
+  document.querySelectorAll('.falling-petal').forEach(p => p.remove());
+  applyHanamiCosmetics();
   initSockets();
   applyBoardLayout();
+  closeSheet();
   render();
   saveState();
-  toast('Reset!');
-  setTimeout(() => showDialogue(HANA_INTRO), 200);
-}
-
-function renderAudioToggle() {
-  el.audioToggle.textContent = state.audioOn ? '🔊' : '🔇';
-  el.audioToggle.classList.toggle('muted', !state.audioOn);
-}
-
-function toggleAudio() {
-  state.audioOn = !state.audioOn;
-  renderAudioToggle();
-  if (state.audioOn) playTap();
-  saveState();
+  toast('Progress reset');
+  setTimeout(() => showDialogue(HANA_INTRO), 300);
 }
 
 // ---- Particles ----
@@ -1098,41 +1280,60 @@ function render() {
   renderStats();
   renderQuest();
   renderRestoration();
-  renderAlbum();
   renderEvent();
   parseEmoji();
 }
 
+function makeSpan(className, text) {
+  const s = document.createElement('span');
+  s.className = className;
+  s.textContent = text;
+  return s;
+}
+
+// Festival shop (in the menu sheet). Also lights the menu dot when the
+// player can afford something they don't own yet.
 function renderEvent() {
-  if (!el.petals) return;
-  el.petals.textContent = state.petals;
+  el.petalsSheet.textContent = state.petals.toLocaleString();
   el.eventShop.innerHTML = '';
+  let affordable = false;
   HANAMI_SHOP.forEach(item => {
     const owned = state.hanami[item.id];
+    if (!owned && state.petals >= item.cost) affordable = true;
     const btn = document.createElement('button');
     btn.className = 'event-item' + (owned ? ' owned' : '');
-    btn.title = item.name;
-    btn.textContent = owned ? `${item.emoji} ✓` : `${item.emoji} ${item.cost}`;
+    btn.append(
+      makeSpan('event-emoji', item.emoji),
+      makeSpan('event-name', item.name),
+      makeSpan('event-cost', owned ? 'Owned ✓' : `${item.cost} petals`),
+    );
     btn.disabled = owned || state.petals < item.cost;
     if (!owned) btn.addEventListener('click', () => buyHanami(item.id));
     el.eventShop.appendChild(btn);
   });
+  el.menuDot.classList.toggle('hidden', !affordable);
+  parseEmoji(el.eventShop);
 }
 
 function renderAlbum() {
-  if (!el.albumSlots) return;
   el.albumSlots.innerHTML = '';
   CHAIN_NAMES.forEach(chain => {
     const earned = !!state.spiritAlbum[chain];
     const tier7 = CHAINS[chain].tiers[CONFIG.maxTier];
     const slot = document.createElement('div');
     slot.className = 'album-slot chain-' + chain + (earned ? ' earned' : ' locked');
-    const img = makeItemArt(tier7, 0);
-    img.style.width = img.style.height = '26px';
-    slot.appendChild(img);
-    slot.title = earned ? tier7.name : `Merge to ${tier7.name} to unlock`;
+    const name = makeSpan('album-name', tier7.name);
+    name.style.display = 'block';
+    const sub = makeSpan('album-chain', earned ? 'Collected ✓' : `${CHAINS[chain].label} · final tier`);
+    sub.style.display = 'block';
+    slot.append(makeItemArt(tier7, 58), name, sub);
     el.albumSlots.appendChild(slot);
   });
+  const total = RESTORATION_STEPS.length;
+  el.villageLarge.src = `art/village-${state.restorationStep}.svg`;
+  el.villageCaption.textContent = state.restorationStep >= total
+    ? 'Fully restored. The spirits are home.'
+    : `${state.restorationStep} of ${total} restored · next: ${RESTORATION_STEPS[state.restorationStep].name}`;
 }
 
 function renderBoard() {
@@ -1175,8 +1376,7 @@ function renderBoard() {
   el.board.appendChild(frag);
 
   // Nudge the player toward the generators when there is nothing to merge.
-  const boardEmpty = state.board.every(item => !item);
-  document.querySelector('.generators').classList.toggle('gen-hint', boardEmpty);
+  el.generators.classList.toggle('gen-hint', state.board.every(item => !item));
 
   requestAnimationFrame(() => {
     state.spawnedCells.clear();
@@ -1188,8 +1388,15 @@ function renderBoard() {
 function renderStats() {
   el.energy.textContent = Math.floor(state.energy);
   el.coins.textContent = state.coins.toLocaleString();
-  el.xp.textContent = state.xp.toLocaleString();
+  el.petals.textContent = state.petals.toLocaleString();
   el.level.textContent = state.level;
+  el.xpFill.style.width = Math.min(100, (state.xp / xpForNextLevel(state.level)) * 100) + '%';
+  if (state.energy >= CONFIG.energyMax) {
+    el.energyTimer.textContent = state.energy > CONFIG.energyMax ? 'Bonus!' : 'Full';
+  } else {
+    const s = Math.max(0, Math.ceil((state.regenAnchor + CONFIG.energyRegenMs - Date.now()) / 1000));
+    el.energyTimer.textContent = `+1 in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
   document.body.classList.toggle('low-energy', state.energy < 10);
 }
 
@@ -1198,13 +1405,13 @@ function renderQuest() {
   const reward = QUEST_REWARDS[state.questTier];
   el.questArt.src = def.art;
   el.questArt.alt = def.name;
-  el.questText.textContent = `Deliver a ${def.name}`;
-  el.questReward.textContent = `+${reward.coins} coins, +${reward.xp} XP · T${state.questTier}`;
+  el.questText.textContent = def.name;
+  el.questReward.textContent = `T${state.questTier} · +${reward.coins} 🪙 +${reward.xp} XP`;
+  parseEmoji(el.questReward);
   const hasItem = state.board.some(
     item => item && item.chain === state.questChain && item.tier === state.questTier
   );
   el.questDeliver.disabled = !hasItem;
-  el.questDeliver.style.opacity = hasItem ? '1' : '0.45';
 }
 
 // The scene index equals completed steps: village-0 (overgrown) through
@@ -1230,14 +1437,18 @@ function renderVillageScene() {
 function renderRestoration() {
   const step = RESTORATION_STEPS[state.restorationStep];
   renderVillageScene();
+  el.restCard.classList.toggle('done', !step);
+  el.stepComplete.classList.toggle('hidden', !step);
 
   if (!step) {
+    // Epilogue: the story is complete; point players at what's left to do.
     el.stepNum.textContent = RESTORATION_STEPS.length;
-    el.stepName.textContent = 'Village fully restored ✨';
-    el.stepCost.textContent = '—';
+    el.stepName.textContent = 'Village restored ✨';
     el.sockets.innerHTML = '';
-    el.stepComplete.disabled = true;
-    el.stepComplete.style.opacity = '0.4';
+    const albumDone = CHAIN_NAMES.every(c => state.spiritAlbum[c]);
+    el.sockets.appendChild(makeSpan('epilogue-note', albumDone
+      ? 'Album complete! Chapter 2 is on its way.'
+      : 'Chapter 2 is on its way. Fill your Spirit Album!'));
     return;
   }
 
@@ -1257,7 +1468,7 @@ function renderRestoration() {
       const def = getItem(item.chain, item.tier);
       const span = document.createElement('span');
       span.className = 'item';
-      span.appendChild(makeItemArt(def, 4));
+      span.appendChild(makeItemArt(def, '84%'));
       socket.appendChild(span);
       socket.addEventListener('pointerdown', e => onItemPointerDown(e, {
         type: 'socket', idx: i, chain: item.chain, tier: item.tier,
@@ -1266,7 +1477,7 @@ function renderRestoration() {
       socket.classList.add('empty');
       // Ghosted preview of the exact item this socket needs
       const reqDef = getItem(req.chain, req.tier);
-      const preview = makeItemArt(reqDef, 0);
+      const preview = makeItemArt(reqDef, '78%');
       preview.classList.add('socket-preview');
       socket.appendChild(preview);
       const tierTag = document.createElement('span');
@@ -1281,7 +1492,6 @@ function renderRestoration() {
     && state.restorationSockets.every(s => s !== null)
     && state.coins >= step.coins;
   el.stepComplete.disabled = !ready;
-  el.stepComplete.style.opacity = ready ? '1' : '0.45';
 }
 
 let toastTimer = null;
@@ -1298,17 +1508,41 @@ function toast(msg, kind = '') {
 if (!loadState()) initSockets();
 el.stepTotal.textContent = RESTORATION_STEPS.length;
 applyBoardLayout();
-renderAudioToggle();
+trackSessionStart();
 
 CHAIN_NAMES.forEach(chain => {
   const btn = document.getElementById('gen-' + chain);
   if (btn) btn.addEventListener('click', () => tapGenerator(chain));
 });
 el.questDeliver.addEventListener('click', deliverQuest);
+el.questSkip.addEventListener('click', skipQuest);
 el.stepComplete.addEventListener('click', completeStep);
-el.reset.addEventListener('click', resetGame);
-el.audioToggle.addEventListener('click', toggleAudio);
 el.blessingClaim.addEventListener('click', claimBlessing);
+
+el.menuBtn.addEventListener('click', () => { ensureAudio(); openSheet(); });
+el.sheetClose.addEventListener('click', closeSheet);
+el.sheet.addEventListener('click', e => { if (e.target === el.sheet) closeSheet(); });
+el.sheet.querySelectorAll('.sheet-tab').forEach(b => {
+  b.addEventListener('click', () => selectSheetTab(b.dataset.tab));
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !el.sheet.classList.contains('hidden')) closeSheet();
+});
+el.setSound.addEventListener('change', () => {
+  state.audioOn = el.setSound.checked;
+  if (state.audioOn) playTap();
+  saveState();
+});
+el.setHaptics.addEventListener('change', () => {
+  state.hapticsOn = el.setHaptics.checked;
+  buzz(15);
+  saveState();
+});
+el.setAnalytics.addEventListener('change', () => {
+  state.analyticsOn = el.setAnalytics.checked;
+  saveState();
+});
+el.reset.addEventListener('click', resetGame);
 el.dialogueNext.addEventListener('click', advanceDialogue);
 el.dialogue.addEventListener('click', e => {
   if (e.target === el.dialogue) advanceDialogue();
@@ -1318,7 +1552,7 @@ document.addEventListener('pointermove', onPointerMove);
 document.addEventListener('pointerup', onPointerUp);
 document.addEventListener('pointercancel', cancelDrag);
 
-setInterval(() => { regenEnergy(); saveState(); }, CONFIG.energyRegenMs);
+setInterval(tick, 1000);
 applyHanamiCosmetics();
 render();
 

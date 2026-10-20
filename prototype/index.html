@@ -2,11 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Sakura">
 <meta name="theme-color" content="#ffe4ed">
-<title>Sakura Merge — Prototype v0.12</title>
+<title>Sakura Merge</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="art/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -14,95 +16,129 @@
 <script defer src="lib/twemoji.min.js"></script>
 </head>
 <body>
-<div class="container">
-  <header class="stats">
-    <div class="stat">
-      <div class="stat-label">Energy</div>
-      <div class="stat-val"><span id="energy">120</span><span class="stat-max">/120</span></div>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="chip chip-energy" title="Energy">
+      <span class="chip-icon">⚡</span>
+      <div class="chip-body">
+        <div class="chip-val"><span id="energy">120</span><span class="chip-max">/120</span></div>
+        <div class="chip-sub" id="energy-timer">Full</div>
+      </div>
     </div>
-    <div class="stat">
-      <div class="stat-label">Coins</div>
-      <div class="stat-val" id="coins">0</div>
+    <div class="chip" title="Coins">
+      <span class="chip-icon">🪙</span>
+      <div class="chip-body"><div class="chip-val" id="coins">0</div></div>
     </div>
-    <div class="stat">
-      <div class="stat-label">XP</div>
-      <div class="stat-val" id="xp">0</div>
+    <div class="chip" title="Festival petals">
+      <span class="chip-icon">🌸</span>
+      <div class="chip-body"><div class="chip-val" id="petals">0</div></div>
     </div>
-    <div class="stat">
-      <div class="stat-label">Level</div>
-      <div class="stat-val" id="level">1</div>
+    <div class="chip chip-level" title="Level">
+      <div class="level-badge" id="level">1</div>
+      <div class="xp-bar" aria-hidden="true"><div class="xp-fill" id="xp-fill"></div></div>
     </div>
+    <button class="menu-btn" id="menu-btn" aria-label="Open menu">
+      <span class="menu-lines" aria-hidden="true"></span>
+      <span class="menu-dot hidden" id="menu-dot"></span>
+    </button>
   </header>
 
-  <div class="album" id="album">
-    <div class="album-label">Spirit Album</div>
-    <div class="album-slots" id="album-slots"></div>
-  </div>
-
-  <div class="event" id="event">
-    <div class="event-info">
-      <div class="event-label">🌸 Hanami Festival</div>
-      <div class="event-petals"><span id="petals">0</span> petals</div>
-    </div>
-    <div class="event-shop" id="event-shop"></div>
-  </div>
-
-  <div class="quest-panel" id="quest">
-    <img class="quest-art" id="quest-art" src="art/items/sakura-3.png" alt="" draggable="false">
-    <div class="quest-info">
-      <div class="quest-label">Quest</div>
-      <div class="quest-text" id="quest-text">Deliver a Blooming Branch</div>
-      <div class="quest-reward" id="quest-reward">+15 coins, +25 XP</div>
-    </div>
-    <button class="quest-deliver" id="quest-deliver">Deliver</button>
-  </div>
-
-  <div class="rest-panel" id="restoration">
-    <div class="rest-row rest-top">
-      <div class="rest-meta">
-        <div class="rest-label">Restoration · Step <span id="step-num">1</span>/<span id="step-total">5</span></div>
-        <div class="rest-name" id="step-name">Clear the path</div>
+  <section class="goals">
+    <div class="card quest-card" id="quest">
+      <div class="card-head">
+        <span class="card-label">Quest</span>
+        <button class="quest-skip" id="quest-skip" aria-label="Swap for a different quest" title="Swap quest">↻</button>
       </div>
-      <div class="rest-art" id="village-art"><img id="village-scene" src="art/village-0.svg" alt="Village" draggable="false"></div>
+      <div class="quest-body">
+        <img class="quest-art" id="quest-art" src="art/items/sakura-3.png" alt="" draggable="false">
+        <div class="quest-info">
+          <div class="quest-text" id="quest-text">Blossom Branch</div>
+          <div class="quest-reward" id="quest-reward">+15 coins</div>
+        </div>
+      </div>
+      <button class="quest-deliver" id="quest-deliver">Deliver</button>
     </div>
-    <div class="rest-row rest-bottom">
-      <div class="sockets" id="sockets"></div>
-      <button class="rest-complete" id="step-complete" disabled>
-        <span class="rest-cost"><span id="step-cost">30</span> 🪙</span>
-        <span class="rest-action">Restore</span>
-      </button>
+
+    <div class="card rest-card" id="restoration">
+      <div class="rest-art" id="village-art"><img id="village-scene" src="art/village-0.svg" alt="" draggable="false"></div>
+      <div class="rest-overlay">
+        <div class="card-head">
+          <span class="card-label">Village <span id="step-num">1</span>/<span id="step-total">5</span></span>
+        </div>
+        <div class="rest-name" id="step-name">Clear the path</div>
+        <div class="rest-row">
+          <div class="sockets" id="sockets"></div>
+          <button class="rest-complete" id="step-complete" disabled>
+            <span class="rest-cost"><span id="step-cost">30</span> 🪙</span>
+            <span class="rest-action">Restore</span>
+          </button>
+        </div>
+      </div>
     </div>
+  </section>
+
+  <main class="board-wrap">
+    <div class="board" id="board"></div>
+  </main>
+
+  <nav class="generators" aria-label="Generators">
+    <button class="btn-gen chain-sakura" id="gen-sakura">
+      <img class="gen-art" src="art/items/sakura-1.png" alt="" draggable="false">
+      <span class="gen-label">Sakura</span>
+      <span class="gen-cost">−1 ⚡</span>
+    </button>
+    <button class="btn-gen chain-food" id="gen-food">
+      <img class="gen-art" src="art/items/food-1.png" alt="" draggable="false">
+      <span class="gen-label">Kitchen</span>
+      <span class="gen-cost">−1 ⚡</span>
+    </button>
+    <button class="btn-gen chain-tea" id="gen-tea">
+      <img class="gen-art" src="art/items/tea-1.png" alt="" draggable="false">
+      <span class="gen-label">Tea</span>
+      <span class="gen-cost">−1 ⚡</span>
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="sheet-backdrop hidden" id="sheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="sheet-tabs" role="tablist">
+      <button class="sheet-tab active" role="tab" data-tab="album">Album</button>
+      <button class="sheet-tab" role="tab" data-tab="festival">Festival</button>
+      <button class="sheet-tab" role="tab" data-tab="settings">Settings</button>
+    </div>
+
+    <section class="sheet-panel" data-panel="album">
+      <h2>Spirit Album</h2>
+      <p class="sheet-note">Forge the final item of each chain to collect its sticker.</p>
+      <div class="album-grid" id="album-slots"></div>
+      <h2>The Village</h2>
+      <img class="village-large" id="village-large" src="art/village-0.svg" alt="The spirit village" draggable="false">
+      <p class="sheet-note" id="village-caption"></p>
+    </section>
+
+    <section class="sheet-panel hidden" data-panel="festival">
+      <h2>🌸 Hanami Festival</h2>
+      <p class="sheet-note">Merges of tier 3 and up earn petals. Spend them on decorations for the village.</p>
+      <div class="petal-balance"><span id="petals-sheet">0</span> petals</div>
+      <div class="event-shop" id="event-shop"></div>
+    </section>
+
+    <section class="sheet-panel hidden" data-panel="settings">
+      <label class="setting"><span>Sound</span><input type="checkbox" id="set-sound" role="switch"></label>
+      <label class="setting"><span>Vibration</span><input type="checkbox" id="set-haptics" role="switch"></label>
+      <label class="setting hidden" id="set-analytics-row"><span>Share anonymous usage stats</span><input type="checkbox" id="set-analytics" role="switch"></label>
+      <a class="setting-link" href="privacy.html">Privacy policy</a>
+      <a class="setting-link" href="credits.html">Credits &amp; licenses</a>
+      <button class="setting-link danger" id="reset">Reset progress…</button>
+      <p class="version" id="version"></p>
+    </section>
+
+    <button class="sheet-close" id="sheet-close">Done</button>
   </div>
-
-  <div class="board" id="board"></div>
-
-  <div class="controls">
-    <div class="generators">
-      <button class="btn-gen chain-sakura" id="gen-sakura">
-        <img class="gen-art" src="art/items/sakura-1.png" alt="" draggable="false">
-        <span class="gen-label">Sakura</span>
-        <span class="gen-cost">−1 ⚡</span>
-      </button>
-      <button class="btn-gen chain-food" id="gen-food">
-        <img class="gen-art" src="art/items/food-1.png" alt="" draggable="false">
-        <span class="gen-label">Kitchen</span>
-        <span class="gen-cost">−1 ⚡</span>
-      </button>
-      <button class="btn-gen chain-tea" id="gen-tea">
-        <img class="gen-art" src="art/items/tea-1.png" alt="" draggable="false">
-        <span class="gen-label">Tea</span>
-        <span class="gen-cost">−1 ⚡</span>
-      </button>
-    </div>
-    <button class="btn-secondary" id="audio-toggle" title="Toggle sound">🔊</button>
-    <button class="btn-secondary" id="reset" title="Reset">↺</button>
-  </div>
-
-  <div class="toast" id="toast"></div>
-  <footer>
-    Sakura Merge · Prototype v0.12<br>
-    <span class="hint">Drag to merge · Earn petals from T3+ merges · Spend them in the Hanami shop</span>
-  </footer>
 </div>
 
 <div class="splash" id="splash">
@@ -112,7 +148,6 @@
     <div class="splash-sub">a hidden village awaits</div>
     <div class="splash-hint">Tap to begin</div>
   </div>
-  <div class="splash-version">prototype v0.12</div>
 </div>
 
 <div class="dialogue-overlay hidden" id="dialogue">
