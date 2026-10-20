@@ -1,0 +1,47 @@
+/* Styles for the static pages (privacy policy, credits). */
+:root {
+  --accent: #d9618a;
+  --text: #4a2c3a;
+  --muted: #9a7280;
+  --line: #f1dfe7;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Hiragino Sans', system-ui, sans-serif;
+  color: var(--text);
+  background: linear-gradient(160deg, #fff5f9 0%, #ffe4ed 100%);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 18px calc(env(safe-area-inset-bottom, 0px) + 40px);
+}
+.back {
+  display: inline-block;
+  margin-bottom: 18px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: white;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(217, 97, 138, 0.18);
+}
+h1 { font-size: 26px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 28px 0 6px; }
+p, li { font-size: 15px; }
+ul { padding-left: 20px; }
+.meta { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 4px 18px 14px;
+  box-shadow: 0 2px 8px rgba(217, 97, 138, 0.18);
+}
+a { color: var(--accent); }
+code { font-size: 13px; background: #fbeef3; padding: 1px 5px; border-radius: 5px; }
