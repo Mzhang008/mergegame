@@ -1617,6 +1617,24 @@ setInterval(tick, 1000);
 applyHanamiCosmetics();
 render();
 
+// Mobile browsers may kill a backgrounded tab without warning; save on the
+// way out and catch up energy on the way back in.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveState();
+  else tick();
+});
+window.addEventListener('pagehide', saveState);
+
+// Count (never describe) runtime errors, once per session.
+function noteError() { try { track('error', { once: 'session' }); } catch (_) { /* ignore */ } }
+window.addEventListener('error', noteError);
+window.addEventListener('unhandledrejection', noteError);
+
+// Offline support (see sw.js). Needs a secure context; localhost counts.
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
 // Twemoji may load after our first render — re-parse once when it finishes.
 window.addEventListener('load', () => parseEmoji());
 

@@ -20,7 +20,7 @@ column N is tier N+1 -- except food, where the game swaps sheet columns 4
 and 5 (sake set is tier 5, feast table tier 6) so each tier looks bigger
 than the last. Install with:
     for t in 1..7: food-t <- r0c{0,1,2,3,5,4,6}[t-1], sakura-t <- r1c{t-1},
-                   tea-t <- r2c{t-1}   (into prototype/art/items/)
+                   tea-t <- r2c{t-1}   (into game/art/items/)
 """
 import sys
 from collections import deque
