@@ -1,0 +1,15 @@
+{
+  "name": "sakura-merge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sakura Merge: a cozy merge game about restoring a hidden spirit village.",
+  "scripts": {
+    "start": "node tools/serve.js 8765",
+    "test": "playwright test --project=chromium",
+    "test:webkit": "playwright test --project=webkit",
+    "test:all": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
