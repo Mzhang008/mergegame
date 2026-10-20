@@ -8,12 +8,12 @@
   --accent: #d9618a;
   --accent-dark: #b04772;
   --accent-light: #ffd1e0;
-  --sushi: #e89544;
-  --sushi-dark: #c47220;
-  --sushi-light: #fde2c4;
-  --lantern: #d63d2e;
-  --lantern-dark: #a82d20;
-  --lantern-light: #fad8d0;
+  --food: #e89544;
+  --food-dark: #c47220;
+  --food-light: #fde2c4;
+  --tea: #6a9e3f;
+  --tea-dark: #4a7a2a;
+  --tea-light: #dcefc8;
   --text: #4a2c3a;
   --text-muted: #9a7280;
   --selected: #ffb84d;
@@ -187,8 +187,8 @@ body {
   color: inherit;
 }
 .album-slot.earned.chain-sakura { background: linear-gradient(135deg, #fff, var(--accent-light)); }
-.album-slot.earned.chain-sushi  { background: linear-gradient(135deg, #fff, var(--sushi-light)); }
-.album-slot.earned.chain-lantern { background: linear-gradient(135deg, #fff, var(--lantern-light)); }
+.album-slot.earned.chain-food  { background: linear-gradient(135deg, #fff, var(--food-light)); }
+.album-slot.earned.chain-tea { background: linear-gradient(135deg, #fff, var(--tea-light)); }
 @keyframes album-shimmer {
   0%, 100% { box-shadow: 0 0 6px rgba(244, 197, 66, 0.5); }
   50%      { box-shadow: 0 0 14px rgba(244, 197, 66, 0.85); }
@@ -390,12 +390,6 @@ body.gold-glow .board {
   transition: all 0.15s;
   flex-shrink: 0;
 }
-.socket-hint {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
-  opacity: 0.6;
-}
 .socket.filled {
   border-style: solid;
   border-color: var(--accent);
@@ -533,14 +527,11 @@ body.gold-glow .board {
   pointer-events: none;
 }
 .cell.chain-sakura .tier-badge { background: rgba(176, 71, 114, 0.85); }
-.cell.chain-sushi .tier-badge { background: rgba(196, 114, 32, 0.85); }
-.cell.chain-lantern .tier-badge { background: rgba(168, 45, 32, 0.85); }
+.cell.chain-food .tier-badge { background: rgba(196, 114, 32, 0.85); }
+.cell.chain-tea .tier-badge { background: rgba(74, 122, 42, 0.85); }
 .socket.chain-sakura { border-color: var(--accent); }
-.socket.chain-sushi { border-color: var(--sushi); }
-.socket.chain-lantern { border-color: var(--lantern); }
-.socket.empty.chain-sakura .socket-hint { color: var(--accent); }
-.socket.empty.chain-sushi .socket-hint { color: var(--sushi); }
-.socket.empty.chain-lantern .socket-hint { color: var(--lantern); }
+.socket.chain-food { border-color: var(--food); }
+.socket.chain-tea { border-color: var(--tea); }
 .cell.tier-7 .item {
   filter: drop-shadow(0 0 6px var(--gold));
   animation: glow 2.5s ease-in-out infinite;
@@ -597,11 +588,11 @@ body.gold-glow .board {
 .btn-gen.chain-sakura {
   background: linear-gradient(135deg, var(--accent), var(--accent-dark));
 }
-.btn-gen.chain-sushi {
-  background: linear-gradient(135deg, var(--sushi), var(--sushi-dark));
+.btn-gen.chain-food {
+  background: linear-gradient(135deg, var(--food), var(--food-dark));
 }
-.btn-gen.chain-lantern {
-  background: linear-gradient(135deg, var(--lantern), var(--lantern-dark));
+.btn-gen.chain-tea {
+  background: linear-gradient(135deg, var(--tea), var(--tea-dark));
 }
 .btn-gen:active { transform: scale(0.95); }
 .btn-gen:disabled { background: #bbb; cursor: not-allowed; box-shadow: none; opacity: 0.7; }

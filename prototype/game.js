@@ -1,6 +1,6 @@
-// Sakura Merge - Prototype v0.4
-// Three chains (Sakura/Sushi/Lantern), localStorage persistence,
-// offline energy regen, Hana intro + per-step dialogue.
+// Sakura Merge — a cozy merge game about restoring a hidden spirit village.
+// Three item chains (Sakura / Food / Tea), local saves, daily blessing,
+// Hanami festival shop, and Hana's story beats.
 
 const CONFIG = {
   baseBoardRows: 9,
@@ -16,7 +16,7 @@ const CONFIG = {
   xpCurveExp: 1.3,
   spawnStaggerMs: 80,
   storageKey: 'sakuraMerge_save',
-  storageVersion: 5,
+  storageVersion: 6,
 };
 
 // Prototype values - GDD calls for L10 and L25 in production.
@@ -24,59 +24,63 @@ const BOARD_EXPANSIONS = { 5: 1, 10: 1 };
 const MAX_BOARD_ROWS = CONFIG.baseBoardRows
   + Object.values(BOARD_EXPANSIONS).reduce((a, b) => a + b, 0);
 
+// Item icons are cut from art-source/items-sheet.webp by tools/slice_sheet.py.
 const CHAINS = {
   sakura: {
-    hint: '🌸',
+    label: 'Sakura',
     tiers: [
       null,
-      { emoji: '🌱', name: 'Sakura Bud',            size: 18, art: 'art/sakura-1.svg' },
-      { emoji: '🌸', name: 'Pink Petal',            size: 22, art: 'art/sakura-2.svg' },
-      { emoji: '🌷', name: 'Blooming Branch',       size: 26, art: 'art/sakura-3.svg' },
-      { emoji: '💮', name: 'Sakura Bonsai',         size: 30, art: 'art/sakura-4.svg' },
-      { emoji: '🌺', name: 'Young Sakura Tree',     size: 34, art: 'art/sakura-5.svg' },
-      { emoji: '🌳', name: 'Full Sakura Bloom',     size: 40, art: 'art/sakura-6.svg' },
-      { emoji: '🌲', name: 'Eternal Sakura Spirit', size: 46, art: 'art/sakura-7.svg' },
+      { name: 'Sakura Petal',   size: 18, art: 'art/items/sakura-1.png' },
+      { name: 'Blossom Twig',   size: 22, art: 'art/items/sakura-2.png' },
+      { name: 'Blossom Branch', size: 26, art: 'art/items/sakura-3.png' },
+      { name: 'Young Bonsai',   size: 30, art: 'art/items/sakura-4.png' },
+      { name: 'Elder Bonsai',   size: 34, art: 'art/items/sakura-5.png' },
+      { name: 'Zen Garden',     size: 40, art: 'art/items/sakura-6.png' },
+      { name: 'Spirit Garden',  size: 46, art: 'art/items/sakura-7.png' },
     ],
   },
-  sushi: {
-    hint: '🍙',
+  food: {
+    label: 'Food',
     tiers: [
       null,
-      { emoji: '🌾', name: 'Rice Grain',     size: 18, art: 'art/sushi-1.svg' },
-      { emoji: '🍚', name: 'Rice Bowl',      size: 22, art: 'art/sushi-2.svg' },
-      { emoji: '🍙', name: 'Onigiri',        size: 26, art: 'art/sushi-3.svg' },
-      { emoji: '🍣', name: 'Maki Roll',      size: 30, art: 'art/sushi-4.svg' },
-      { emoji: '🍤', name: 'Tempura Plate',  size: 34, art: 'art/sushi-5.svg' },
-      { emoji: '🍱', name: 'Bento Box',      size: 40, art: 'art/sushi-6.svg' },
-      { emoji: '🍶', name: 'Imperial Feast', size: 46, art: 'art/sushi-7.svg' },
+      { name: 'Chopsticks',    size: 18, art: 'art/items/food-1.png' },
+      { name: 'Onigiri',       size: 22, art: 'art/items/food-2.png' },
+      { name: 'Takoyaki',      size: 26, art: 'art/items/food-3.png' },
+      { name: 'Bento Box',     size: 30, art: 'art/items/food-4.png' },
+      { name: 'Sake Set',      size: 34, art: 'art/items/food-5.png' },
+      { name: 'Lacquer Feast', size: 40, art: 'art/items/food-6.png' },
+      { name: 'Grand Banquet', size: 46, art: 'art/items/food-7.png' },
     ],
   },
-  lantern: {
-    hint: '🏮',
+  tea: {
+    label: 'Tea',
     tiers: [
       null,
-      { emoji: '📜', name: 'Paper Scrap',      size: 18, art: 'art/lantern-1.svg' },
-      { emoji: '📃', name: 'Folded Paper',     size: 22, art: 'art/lantern-2.svg' },
-      { emoji: '🎴', name: 'Painted Paper',    size: 26, art: 'art/lantern-3.svg' },
-      { emoji: '🏮', name: 'Small Lantern',    size: 30, art: 'art/lantern-4.svg' },
-      { emoji: '🪔', name: 'Lit Lantern',      size: 34, art: 'art/lantern-5.svg' },
-      { emoji: '🎐', name: 'Floating Lantern', size: 40, art: 'art/lantern-6.svg' },
-      { emoji: '🌟', name: 'Spirit Lantern',   size: 46, art: 'art/lantern-7.svg' },
+      { name: 'Tea Leaf',          size: 18, art: 'art/items/tea-1.png' },
+      { name: 'Green Tea',         size: 22, art: 'art/items/tea-2.png' },
+      { name: 'Stone Lantern',     size: 26, art: 'art/items/tea-3.png' },
+      { name: 'Teapot Set',        size: 30, art: 'art/items/tea-4.png' },
+      { name: 'Treasure Chest',    size: 34, art: 'art/items/tea-5.png' },
+      { name: 'Matcha Set',        size: 40, art: 'art/items/tea-6.png' },
+      { name: 'Tea Ceremony Room', size: 46, art: 'art/items/tea-7.png' },
     ],
   },
 };
 const CHAIN_NAMES = Object.keys(CHAINS);
+// Chain ids used by saves written before v1.0.
+const CHAIN_ALIASES = { sushi: 'food', lantern: 'tea' };
 function getItem(chain, tier) { return CHAINS[chain].tiers[tier]; }
+function chainId(id) { return CHAIN_ALIASES[id] || id; }
 
 // Particle palettes for merge bursts, per chain.
 const CHAIN_FX = {
-  sakura:  ['#f7a8c8', '#f291bd', '#ffffff'],
-  sushi:   ['#f5d76e', '#f28c6b', '#ffffff'],
-  lantern: ['#e8574a', '#f5c542', '#ffffff'],
+  sakura: ['#f7a8c8', '#f291bd', '#ffffff'],
+  food:   ['#f5d76e', '#f28c6b', '#ffffff'],
+  tea:    ['#8bc34a', '#c5e1a5', '#ffffff'],
 };
 
-// Build an <img> for an item's anime-style SVG art. Size derives from the
-// tier's legacy font-size value so the visual scale progression is kept.
+// Build an <img> for an item's icon. Size derives from the tier's display
+// scale so higher tiers read as visibly bigger.
 function makeItemArt(def, sizeBoost = 10) {
   const img = document.createElement('img');
   img.className = 'item-art';
@@ -125,44 +129,44 @@ const RESTORATION_STEPS = [
     coins: 30,
     dialogue: [
       "The path is clear! I can already feel the wind change.",
-      "Welcome the spirits next — they remember the taste of rice. The Rice Sack will help you cook offerings.",
+      "Welcome the spirits next — they remember the taste of home cooking. The Kitchen will help you prepare offerings.",
     ],
   },
   {
     name: 'Welcome the spirits',
     sockets: [
       { chain: 'sakura', tier: 3 },
-      { chain: 'sushi',  tier: 3 },
+      { chain: 'food',   tier: 3 },
     ],
     coins: 100,
     dialogue: [
       "...The shrine bells stirred. They heard us.",
-      "Now we need light. Paper lanterns guided spirits home in the old days — the Paper Pile will let us fold new ones.",
+      "Now we need light. Stone lanterns guided spirits home in the old days — tend the Tea Garden and one will surface.",
     ],
   },
   {
     name: 'Light the lanterns',
-    sockets: [{ chain: 'lantern', tier: 4 }],
+    sockets: [{ chain: 'tea', tier: 3 }],
     coins: 200,
     dialogue: [
       "The lanterns glow once more. I had forgotten that color.",
-      "The tea house is next. We will need a proper Maki Roll for the table.",
+      "The tea house is next. A proper teapot set for the table, please.",
     ],
   },
   {
     name: 'Open the tea house',
-    sockets: [{ chain: 'sushi', tier: 4 }],
+    sockets: [{ chain: 'tea', tier: 4 }],
     coins: 350,
     dialogue: [
       "The aroma drifts through the trees. They are coming back, all of them.",
-      "One last thing — the Spirit Tree at the village heart. It needs sakura petals AND lantern light to wake.",
+      "One last thing — the Spirit Tree at the village heart. It needs an elder bonsai AND a sake offering to wake.",
     ],
   },
   {
     name: 'Awaken the Spirit Tree',
     sockets: [
-      { chain: 'sakura',  tier: 5 },
-      { chain: 'lantern', tier: 5 },
+      { chain: 'sakura', tier: 5 },
+      { chain: 'food',   tier: 5 },
     ],
     coins: 700,
     dialogue: [
@@ -194,7 +198,7 @@ function makeInitialState() {
     questTier: 3,
     restorationStep: 0,
     restorationSockets: [],
-    spiritAlbum: { sakura: false, sushi: false, lantern: false },
+    spiritAlbum: { sakura: false, food: false, tea: false },
     lastBlessingDate: null,
     blessingStreak: 0,
     petals: 0,
@@ -257,10 +261,27 @@ function parseEmoji(node) {
   }
 }
 
+// Saved sockets must match the current step's requirements (they may not
+// after a content update). Mismatched items go back to the board.
+function fitSocketsToStep(saved) {
+  const step = RESTORATION_STEPS[state.restorationStep];
+  if (!step) return [];
+  return step.sockets.map((req, i) => {
+    const item = saved[i];
+    if (!item) return null;
+    if (item.chain === req.chain && item.tier === req.tier) return item;
+    const empty = state.board.indexOf(null);
+    if (empty !== -1) state.board[empty] = item;
+    return null;
+  });
+}
+
 function sanitizeItem(item) {
-  if (!item || !CHAINS[item.chain]) return null;
+  if (!item) return null;
+  const chain = chainId(item.chain);
+  if (!CHAINS[chain]) return null;
   if (item.tier < 1 || item.tier > CONFIG.maxTier) return null;
-  return { chain: item.chain, tier: item.tier };
+  return { chain, tier: item.tier };
 }
 
 function saveState() {
@@ -316,12 +337,14 @@ function loadState() {
     state.xp = snap.xp || 0;
     state.level = snap.level || 1;
     state.board = board;
-    state.questChain = CHAINS[snap.questChain] ? snap.questChain : 'sakura';
+    const questChain = chainId(snap.questChain);
+    state.questChain = CHAINS[questChain] ? questChain : 'sakura';
     state.questTier = clamp(snap.questTier || 3, 2, CONFIG.maxTier);
     state.restorationStep = clamp(snap.restorationStep || 0, 0, RESTORATION_STEPS.length);
-    state.restorationSockets = (snap.restorationSockets || []).map(sanitizeItem);
+    state.restorationSockets = fitSocketsToStep((snap.restorationSockets || []).map(sanitizeItem));
     const album = snap.spiritAlbum || {};
-    CHAIN_NAMES.forEach(c => { state.spiritAlbum[c] = !!album[c]; });
+    const oldIds = Object.fromEntries(Object.entries(CHAIN_ALIASES).map(([o, n]) => [n, o]));
+    CHAIN_NAMES.forEach(c => { state.spiritAlbum[c] = !!(album[c] || album[oldIds[c]]); });
     state.lastBlessingDate = snap.lastBlessingDate || null;
     state.blessingStreak = clamp(snap.blessingStreak || 0, 0, 7);
     state.petals = snap.petals || 0;
@@ -823,7 +846,7 @@ function dropOnSocket(src, socketIdx) {
   const req = step.sockets[socketIdx];
 
   if (src.chain !== req.chain || src.tier !== req.tier) {
-    toast(`Socket needs T${req.tier} ${req.chain}`, 'warn');
+    toast(`This spot needs a ${getItem(req.chain, req.tier).name}`, 'warn');
     playInvalid();
     return false;
   }
@@ -905,7 +928,7 @@ function deliverQuest() {
   const idx = state.board.findIndex(
     item => item && item.chain === state.questChain && item.tier === state.questTier
   );
-  if (idx === -1) return toast(`Need a T${state.questTier} ${state.questChain} item!`, 'warn');
+  if (idx === -1) return toast(`Need a ${getItem(state.questChain, state.questTier).name}!`, 'warn');
 
   state.board[idx] = null;
   const reward = QUEST_REWARDS[state.questTier];
