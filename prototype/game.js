@@ -103,6 +103,10 @@ function cellSize() {
   return c ? c.getBoundingClientRect().width : 48;
 }
 
+// Selling clears a clogged board. Prices sit near a quarter of the quest
+// reward for the same tier, so delivering is always the better deal.
+const SELL_VALUE = [0, 1, 2, 4, 10, 25, 60, 150];
+
 const QUEST_REWARDS = {
   2: { coins: 6,    xp: 10 },
   3: { coins: 15,   xp: 25 },
@@ -255,6 +259,8 @@ const el = {
   villageArt: $('village-art'),
   villageScene: $('village-scene'),
   generators: document.querySelector('.generators'),
+  sellZone: $('sell-zone'),
+  sellValue: $('sell-value'),
   toast: $('toast'),
   sheet: $('sheet'),
   sheetClose: $('sheet-close'),
@@ -441,6 +447,10 @@ function playMerge(tier) {
   playTone(base, 0.09, 'sine', 0.12);
   setTimeout(() => playTone(base * 1.5, 0.16, 'sine', 0.12), 70);
   if (tier >= 6) setTimeout(() => playTone(base * 2.2, 0.22, 'sine', 0.1), 150);
+}
+function playSell() {
+  playTone(1320, 0.07, 'triangle', 0.08);
+  setTimeout(() => playTone(1760, 0.12, 'triangle', 0.08), 60);
 }
 function playLevelUp() {
   [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => playTone(f, 0.18, 'sine', 0.12), i * 70));
@@ -811,6 +821,9 @@ function onItemPointerDown(e, source) {
   }
   render();
   highlightDropTargets(source.chain, source.tier);
+  el.sellValue.textContent = `${SELL_VALUE[source.tier]} coins`;
+  el.sellZone.classList.remove('hidden');
+  el.sellZone.classList.add('drop-valid');
 
   drag.raf = requestAnimationFrame(dragFrame);
   e.preventDefault();
@@ -852,6 +865,7 @@ function clearHoverTarget() {
 }
 
 function dropTargetDom(target) {
+  if (target.type === 'sell') return el.sellZone;
   return target.type === 'cell'
     ? document.querySelector(`.cell[data-idx="${target.idx}"]`)
     : document.querySelector(`.socket[data-idx="${target.idx}"]`);
@@ -870,7 +884,7 @@ function onPointerUp() {
   const target = getDropTarget(drag.tx, drag.ty);
   const success = target ? handleDrop(target) : false;
   if (success) {
-    settleGhost(dropTargetDom(target), false);
+    settleGhost(dropTargetDom(target), false, target.type === 'sell');
   } else {
     const sourceEl = drag.source.type === 'cell'
       ? document.querySelector(`.cell[data-idx="${drag.source.idx}"]`)
@@ -880,12 +894,13 @@ function onPointerUp() {
 }
 
 // Spring the ghost into place (drop target on success, source on snap-back),
-// then commit the render.
-function settleGhost(targetEl, isSnapBack) {
+// then commit the render. Sold items shrink away into the sell zone.
+function settleGhost(targetEl, isSnapBack, vanish = false) {
   cancelAnimationFrame(drag.raf);
   drag.active = false;
   clearDropTargets();
   clearHoverTarget();
+  el.sellZone.classList.add('hidden');
 
   if (!drag.ghost || !targetEl) {
     if (isSnapBack) restoreSource();
@@ -898,8 +913,9 @@ function settleGhost(targetEl, isSnapBack) {
   const g = drag.ghost;
   g.classList.add('settle');
   g.style.transform =
-    `translate3d(${r.left + r.width / 2}px, ${r.top + r.height / 2}px, 0) translate(-50%, -50%) scale(1)`;
+    `translate3d(${r.left + r.width / 2}px, ${r.top + r.height / 2}px, 0) translate(-50%, -50%) scale(${vanish ? 0.2 : 1})`;
   if (isSnapBack) g.style.opacity = '0.4';
+  if (vanish) g.style.opacity = '0';
   setTimeout(() => {
     drag.settling = false;
     if (isSnapBack) restoreSource();
@@ -913,6 +929,7 @@ function cancelDrag() {
   drag.active = false;
   clearDropTargets();
   clearHoverTarget();
+  el.sellZone.classList.add('hidden');
   restoreSource();
   finishDrag();
 }
@@ -949,6 +966,7 @@ function getDropTarget(x, y) {
   if (cell) return { type: 'cell', idx: +cell.dataset.idx };
   const socket = elem.closest('.socket');
   if (socket) return { type: 'socket', idx: +socket.dataset.idx };
+  if (elem.closest('.sell-zone')) return { type: 'sell' };
   return null;
 }
 
@@ -956,7 +974,37 @@ function handleDrop(target) {
   const src = drag.source;
   if (target.type === 'cell') return dropOnCell(src, target.idx);
   if (target.type === 'socket') return dropOnSocket(src, target.idx);
+  if (target.type === 'sell') return sellItem(src);
   return false;
+}
+
+let lastSale = null;
+
+function sellItem(src) {
+  const value = SELL_VALUE[src.tier];
+  if (src.type === 'cell') state.board[src.idx] = null;
+  state.coins += value;
+  lastSale = { chain: src.chain, tier: src.tier, value, cell: src.type === 'cell' ? src.idx : null };
+  playSell();
+  buzz(10);
+  bumpStat(el.coins);
+  track('item-sold', { once: 'session' });
+  toast(`Sold ${getItem(src.chain, src.tier).name} · +${value} 🪙`, '', { label: 'Undo', run: undoSale });
+  return true;
+}
+
+function undoSale() {
+  if (!lastSale) return;
+  const { chain, tier, value, cell } = lastSale;
+  lastSale = null;
+  const idx = cell !== null && !state.board[cell] ? cell : state.board.indexOf(null);
+  if (idx === -1) return toast('No room on the board to put it back', 'warn');
+  state.board[idx] = { chain, tier };
+  state.coins = Math.max(0, state.coins - value);
+  state.spawnedCells = new Set([idx]);
+  playTap();
+  render();
+  saveState();
 }
 
 function dropOnCell(src, toIdx) {
@@ -1495,12 +1543,25 @@ function renderRestoration() {
 }
 
 let toastTimer = null;
-function toast(msg, kind = '') {
+// `action` ({label, run}) adds a tappable button and keeps the toast up longer.
+function toast(msg, kind = '', action = null) {
   el.toast.textContent = msg;
-  el.toast.className = 'toast show ' + kind;
+  if (action) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => { hideToast(); action.run(); });
+    el.toast.appendChild(btn);
+  }
+  el.toast.className = 'toast show ' + kind + (action ? ' actionable' : '');
   parseEmoji(el.toast);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.toast.className = 'toast ' + kind; }, 1600);
+  toastTimer = setTimeout(hideToast, action ? 4000 : 1600);
+}
+
+function hideToast() {
+  clearTimeout(toastTimer);
+  el.toast.classList.remove('show', 'actionable');
 }
 
 // ---- Init ----
