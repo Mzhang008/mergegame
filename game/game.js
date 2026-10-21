@@ -17,7 +17,7 @@ const CONFIG = {
   spawnStaggerMs: 80,
   storageKey: 'sakuraMerge_save',
   storageVersion: 6,
-  version: '1.0.0',
+  version: '1.1.0',
 };
 
 // Prototype values - GDD calls for L10 and L25 in production.
@@ -142,7 +142,7 @@ const RESTORATION_STEPS = [
     sockets: [{ chain: 'sakura', tier: 3 }],
     coins: 30,
     dialogue: [
-      "The path is clear! I can already feel the wind change.",
+      { face: 'joy', text: "The path is clear! I can already feel the wind change." },
       "Welcome the spirits next — they remember the taste of home cooking. The Kitchen will help you prepare offerings.",
     ],
   },
@@ -154,7 +154,7 @@ const RESTORATION_STEPS = [
     ],
     coins: 100,
     dialogue: [
-      "...The shrine bells stirred. They heard us.",
+      { face: 'moved', text: "...The shrine bells stirred. They heard us." },
       "Now we need light. Stone lanterns guided spirits home in the old days — tend the Tea Garden and one will surface.",
     ],
   },
@@ -163,7 +163,7 @@ const RESTORATION_STEPS = [
     sockets: [{ chain: 'tea', tier: 3 }],
     coins: 200,
     dialogue: [
-      "The lanterns glow once more. I had forgotten that color.",
+      { face: 'moved', text: "The lanterns glow once more. I had forgotten that color." },
       "The tea house is next. A proper teapot set for the table, please.",
     ],
   },
@@ -172,7 +172,7 @@ const RESTORATION_STEPS = [
     sockets: [{ chain: 'tea', tier: 4 }],
     coins: 350,
     dialogue: [
-      "The aroma drifts through the trees. They are coming back, all of them.",
+      { face: 'joy', text: "The aroma drifts through the trees. They are coming back, all of them." },
       "One last thing — the Spirit Tree at the village heart. It needs an elder bonsai AND a sake offering to wake.",
     ],
   },
@@ -184,18 +184,20 @@ const RESTORATION_STEPS = [
     ],
     coins: 700,
     dialogue: [
-      "...",
-      "It blooms. After so long, it blooms.",
-      "Thank you, traveler. The village is whole, and you are part of it now. 🌸",
+      { face: 'moved', text: "..." },
+      { face: 'moved', text: "It blooms. After so long, it blooms." },
+      { face: 'joy', text: "Thank you, traveler. The village is whole, and you are part of it now. 🌸" },
     ],
   },
 ];
 
+// Dialogue lines are strings, or { face, text } to change Hana's expression
+// ('joy' or 'moved'; neutral otherwise).
 const HANA_INTRO = [
   "...You came. The torii gate opened for you.",
   "I am Hana, last apprentice Miko of this village. Long ago the spirits forgot the way home, and the village faded.",
   "Help me restore it. The Sakura Tree below will give you petals to gather.",
-  "Drag two of the same kind together — they merge into something greater. ✨",
+  { face: 'joy', text: "Drag two of the same kind together — they merge into something greater. ✨" },
 ];
 
 function makeInitialState() {
@@ -276,6 +278,7 @@ const el = {
   reset: $('reset'),
   version: $('version'),
   dialogue: $('dialogue'),
+  hanaFace: $('hana-face'),
   dialogueText: $('dialogue-text'),
   dialogueNext: $('dialogue-next'),
   splash: $('splash'),
@@ -289,13 +292,40 @@ const el = {
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
-// Twemoji turns native emoji into consistent SVGs (bundled under lib/svg/).
-// Falls back to native emoji if the parser script hasn't loaded yet.
-function parseEmoji(node) {
-  if (window.twemoji) {
-    window.twemoji.parse(node || document.body, {
-      base: 'lib/', folder: 'svg', ext: '.svg', className: 'emoji',
-    });
+// Pixel-art icons stand in for these emoji wherever they appear in UI text,
+// so strings can say "+40 🪙" and still match the art on every platform.
+const ICONS = {
+  '⚡': { src: 'art/ui/energy.png', alt: 'energy' },
+  '🪙': { src: 'art/ui/coin.png', alt: 'coins' },
+  '🌸': { src: 'art/ui/blossom.png', alt: '' },
+  '✨': { src: 'art/ui/sparkle.png', alt: '' },
+  '🎁': { src: 'art/ui/gift.png', alt: '' },
+  '⛩': { src: 'art/ui/torii.png', alt: '' },
+  '🎋': { src: 'art/tanabata.png', alt: '' },
+};
+const ICON_RE = /(⚡|🪙|🌸|✨|🎁|⛩|🎋)\uFE0F?/gu;
+
+function renderIcons(root = document.body) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const hits = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (n.nodeValue.search(ICON_RE) !== -1) hits.push(n);
+  }
+  for (const node of hits) {
+    const text = node.nodeValue;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    for (const m of text.matchAll(ICON_RE)) {
+      const img = document.createElement('img');
+      img.className = 'icon';
+      img.src = ICONS[m[1]].src;
+      img.alt = ICONS[m[1]].alt;
+      img.draggable = false;
+      frag.append(text.slice(last, m.index), img);
+      last = m.index + m[0].length;
+    }
+    frag.append(text.slice(last));
+    node.replaceWith(frag);
   }
 }
 
@@ -547,8 +577,11 @@ function advanceDialogue() {
     return;
   }
   el.dialogue.classList.remove('hidden');
-  el.dialogueText.textContent = dialogueQueue.shift();
-  parseEmoji(el.dialogue);
+  const line = dialogueQueue.shift();
+  const { text, face } = typeof line === 'string' ? { text: line } : line;
+  el.hanaFace.src = face ? `art/hana-${face}.png` : 'art/hana.png';
+  el.dialogueText.textContent = text;
+  renderIcons(el.dialogue);
 }
 
 // ---- Board layout / album / sockets ----
@@ -590,7 +623,7 @@ function maybeShowBlessing() {
   el.blessingText.textContent =
     `Hana rings the morning bell. Today's offering: ${r.coins} coins and ${r.energy} energy. ⛩️`;
   el.blessing.classList.remove('hidden');
-  parseEmoji(el.blessing);
+  renderIcons(el.blessing);
 }
 
 function claimBlessing() {
@@ -644,18 +677,22 @@ function applyHanamiCosmetics() {
   if (state.hanami.petalRain) spawnPetalRain();
 }
 
+function fallingPetal(size, duration, delay) {
+  const p = document.createElement('img');
+  p.className = 'falling-petal';
+  p.src = 'art/items/sakura-1.png';
+  p.alt = '';
+  p.style.left = Math.random() * 100 + 'vw';
+  p.style.width = size + 'px';
+  p.style.animationDuration = duration + 's';
+  p.style.animationDelay = delay + 's';
+  return p;
+}
+
 function spawnPetalRain() {
   if (document.querySelector('.falling-petal')) return;
   for (let i = 0; i < 10; i++) {
-    const p = document.createElement('span');
-    p.className = 'falling-petal';
-    p.textContent = '🌸';
-    p.style.left = Math.random() * 100 + 'vw';
-    p.style.animationDuration = (6 + Math.random() * 6) + 's';
-    p.style.animationDelay = (Math.random() * 8) + 's';
-    p.style.fontSize = (10 + Math.random() * 10) + 'px';
-    document.body.appendChild(p);
-    parseEmoji(p);
+    document.body.appendChild(fallingPetal(14 + Math.random() * 14, 6 + Math.random() * 6, Math.random() * 8));
   }
 }
 
@@ -680,7 +717,7 @@ function openSheet(tab = 'album') {
   renderEvent();
   renderSettings();
   el.sheet.classList.remove('hidden');
-  parseEmoji(el.sheet);
+  renderIcons(el.sheet);
 }
 
 function closeSheet() {
@@ -1197,7 +1234,7 @@ function skipQuest() {
   playTap();
   track('quest-skip', { once: 'session' });
   renderQuest();
-  parseEmoji(el.quest);
+  renderIcons(el.quest);
   saveState();
 }
 
@@ -1329,7 +1366,7 @@ function render() {
   renderQuest();
   renderRestoration();
   renderEvent();
-  parseEmoji();
+  renderIcons();
 }
 
 function makeSpan(className, text) {
@@ -1360,7 +1397,7 @@ function renderEvent() {
     el.eventShop.appendChild(btn);
   });
   el.menuDot.classList.toggle('hidden', !affordable);
-  parseEmoji(el.eventShop);
+  renderIcons(el.eventShop);
 }
 
 function renderAlbum() {
@@ -1378,7 +1415,7 @@ function renderAlbum() {
     el.albumSlots.appendChild(slot);
   });
   const total = RESTORATION_STEPS.length;
-  el.villageLarge.src = `art/village-${state.restorationStep}.svg`;
+  el.villageLarge.src = `art/village-${state.restorationStep}.webp`;
   el.villageCaption.textContent = state.restorationStep >= total
     ? 'Fully restored. The spirits are home.'
     : `${state.restorationStep} of ${total} restored · next: ${RESTORATION_STEPS[state.restorationStep].name}`;
@@ -1455,7 +1492,7 @@ function renderQuest() {
   el.questArt.alt = def.name;
   el.questText.textContent = def.name;
   el.questReward.textContent = `T${state.questTier} · +${reward.coins} 🪙 +${reward.xp} XP`;
-  parseEmoji(el.questReward);
+  renderIcons(el.questReward);
   const hasItem = state.board.some(
     item => item && item.chain === state.questChain && item.tier === state.questTier
   );
@@ -1465,7 +1502,7 @@ function renderQuest() {
 // The scene index equals completed steps: village-0 (overgrown) through
 // village-5 (spirit tree awakened). Scene changes crossfade.
 function renderVillageScene() {
-  const next = 'art/village-' + state.restorationStep + '.svg';
+  const next = 'art/village-' + state.restorationStep + '.webp';
   if (!el.villageScene.src.endsWith(next)) {
     el.villageScene.style.opacity = '0';
     setTimeout(() => {
@@ -1475,9 +1512,10 @@ function renderVillageScene() {
   }
   el.villageArt.querySelectorAll('.tanabata-flank').forEach(n => n.remove());
   if (state.hanami.tanabata) {
-    const flank = document.createElement('span');
+    const flank = document.createElement('img');
     flank.className = 'tanabata-flank';
-    flank.textContent = '🎋';
+    flank.src = 'art/tanabata.png';
+    flank.alt = '';
     el.villageArt.appendChild(flank);
   }
 }
@@ -1554,7 +1592,7 @@ function toast(msg, kind = '', action = null) {
     el.toast.appendChild(btn);
   }
   el.toast.className = 'toast show ' + kind + (action ? ' actionable' : '');
-  parseEmoji(el.toast);
+  renderIcons(el.toast);
   clearTimeout(toastTimer);
   toastTimer = setTimeout(hideToast, action ? 4000 : 1600);
 }
@@ -1616,6 +1654,8 @@ document.addEventListener('pointercancel', cancelDrag);
 setInterval(tick, 1000);
 applyHanamiCosmetics();
 render();
+// Fetch Hana's other expressions up front so her first change doesn't flicker.
+['joy', 'moved'].forEach(face => { new Image().src = `art/hana-${face}.png`; });
 
 // Mobile browsers may kill a backgrounded tab without warning; save on the
 // way out and catch up energy on the way back in.
@@ -1635,23 +1675,12 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
 
-// Twemoji may load after our first render — re-parse once when it finishes.
-window.addEventListener('load', () => parseEmoji());
-
 // Splash: first tap doubles as the audio-unlock gesture, then the intro
 // (new player) or daily blessing (returning player) takes over.
 function spawnSplashPetals() {
   for (let i = 0; i < 6; i++) {
-    const p = document.createElement('span');
-    p.className = 'falling-petal';
-    p.textContent = '🌸';
-    p.style.left = Math.random() * 100 + 'vw';
-    p.style.animationDuration = (5 + Math.random() * 5) + 's';
-    p.style.animationDelay = (Math.random() * 4) + 's';
-    p.style.fontSize = (11 + Math.random() * 11) + 'px';
-    el.splash.appendChild(p);
+    el.splash.appendChild(fallingPetal(15 + Math.random() * 15, 5 + Math.random() * 5, Math.random() * 4));
   }
-  parseEmoji(el.splash);
 }
 
 function dismissSplash() {

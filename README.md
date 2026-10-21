@@ -6,7 +6,7 @@ village by merging sakura, food and tea treasures.
 **Play:** https://mzhang008.github.io/mergegame/ — free, no ads, no account, works offline.
 On a phone, use *Add to Home Screen* to install it like an app.
 
-![Sakura Merge](game/og-image.png)
+![Sakura Merge](game/og-image.jpg)
 
 ## The game
 
@@ -33,7 +33,7 @@ lives in [`game/`](game/).
 ```sh
 npm start          # serves game/ at http://localhost:8765
 npm ci             # install the test runner (Node 18+)
-npm test           # 41 end-to-end tests in Chromium
+npm test           # 43 end-to-end tests in Chromium
 npm run test:webkit  # same tests in WebKit (Safari's engine); run `npx playwright install webkit` first
 ```
 
@@ -44,8 +44,10 @@ npm run test:webkit  # same tests in WebKit (Safari's engine); run `npx playwrig
 | `game/` | The shipped game: `index.html`, `game.js`, `style.css`, `sw.js` (offline support), art, icons, privacy and credits pages |
 | `tests/` | Playwright end-to-end tests |
 | `tools/serve.js` | Zero-dependency static server for local play and tests |
-| `tools/slice_sheet.py` | Cuts the item icons out of the art sheet (see below) |
-| `art-source/` | Source art (the item sheet) |
+| `tools/slice_sheet.py` | Cuts the item icons out of the item sheet (see below) |
+| `tools/process_art.py` | Builds the scenes, Hana, interface icons and app icons from their sources |
+| `tools/make_og.js` | Renders the link-preview image |
+| `art-source/` | Source art: the item sheet, village scenes, sprite sheets and app icon |
 | `economy/` | Economy simulator used to tune pacing |
 | `GDD.md` | Game design document |
 
@@ -59,7 +61,7 @@ A WebKit run reports alongside but does not block a deploy.
 ### Releasing a new version
 
 1. Update `CONFIG.version` in `game/game.js` and `VERSION` in `game/sw.js` (the service
-   worker uses it to drop old caches).
+   worker uses it to drop old caches); a test fails if they differ.
 2. If you add or remove files in `game/`, update `PRECACHE` in `game/sw.js`; a test fails
    if the list and the folder disagree.
 3. If the save format changes, bump `CONFIG.storageVersion` and make `loadState()` read
@@ -82,22 +84,38 @@ Privacy Control, or on localhost. Events go straight to GoatCounter's `/count` e
 no third-party script is loaded. Review [`game/privacy.html`](game/privacy.html) before
 enabling.
 
-### Item art pipeline
+### Art pipeline
 
-The 21 item icons come from `art-source/items-sheet.webp`, a 3×7 sheet whose
-checkerboard background is painted into the pixels. `tools/slice_sheet.py` removes it and
-writes square palette PNGs:
+All art is pixel art kept in `art-source/` and converted by scripts, so it can be
+regenerated after a source changes. Both Python tools need Pillow and numpy:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install pillow numpy
+```
+
+**Items.** The 21 item icons come from `art-source/items-sheet.webp`, a 3×7 sheet whose
+checkerboard background is painted into the pixels. `tools/slice_sheet.py` removes it and
+writes square palette PNGs. Its docstring explains the row-to-chain mapping (the food row
+swaps sheet columns 5 and 6) and how to install the output into `game/art/items/`.
+
+```sh
 .venv/bin/python tools/slice_sheet.py art-source/items-sheet.webp out/ 160
 ```
 
-The script's docstring explains the row-to-chain mapping (the food row swaps sheet
-columns 5 and 6) and how to install the output into `game/art/items/`.
+**Everything else.** `tools/process_art.py` writes straight into `game/`: the six village
+scenes (`village-0.jpg` to `village-5.jpg`, one per restoration step, all from the same
+camera so the game can crossfade them), Hana's three expressions, the torii and Tanabata
+sprites (`hana-sheet.jpg`), the interface icons (`ui-icons.jpg`) and the app icons and
+favicon (`app-icon.jpg`). The sprite sheets are drawn on flat magenta on a grid of big
+pixels; the script finds the grid, snaps to it and keys out the magenta. Then render the
+link preview from the new art:
+
+```sh
+.venv/bin/python tools/process_art.py
+node tools/make_og.js
+```
 
 ## Credits
 
-Item, village, character and icon art was made for Sakura Merge. Interface emoji are
-[Twemoji](https://github.com/jdecked/twemoji) graphics (CC BY 4.0), with the Twemoji parser
-under the MIT License; see [`game/credits.html`](game/credits.html).
+All art was made for Sakura Merge, and the game ships no third-party code; see
+[`game/credits.html`](game/credits.html).

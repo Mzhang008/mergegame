@@ -1,6 +1,6 @@
 // Sakura Merge service worker: lets the installed game launch and play
 // offline. Bump VERSION with every release so stale caches are dropped.
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const CACHE = `sakura-merge-${VERSION}`;
 
 // Everything the game needs to run offline. tests/pwa.spec.js fails if a
@@ -14,20 +14,15 @@ const PRECACHE = [
   'privacy.html',
   'credits.html',
   'doc.css',
-  'art/icon.svg',
-  'art/icon-maskable.svg',
-  'art/hana.svg',
-  'art/torii.svg',
-  ...[0, 1, 2, 3, 4, 5].map(i => `art/village-${i}.svg`),
+  ...[0, 1, 2, 3, 4, 5].map(i => `art/village-${i}.webp`),
+  ...['hana', 'hana-joy', 'hana-moved', 'torii', 'tanabata'].map(n => `art/${n}.png`),
+  ...['energy', 'coin', 'blossom', 'sparkle', 'gift', 'torii'].map(n => `art/ui/${n}.png`),
   ...['sakura', 'food', 'tea'].flatMap(c => [1, 2, 3, 4, 5, 6, 7].map(t => `art/items/${c}-${t}.png`)),
+  'icons/favicon-32.png',
   'icons/icon-180.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon-maskable-512.png',
-  'lib/twemoji.min.js',
-  ...['1f338', '1f381', '1f38b', '1fa99', '25b6', '26a1', '26e9', '2728'].map(c => `lib/svg/${c}.svg`),
-  'lib/LICENSE-twemoji-code.txt',
-  'lib/LICENSE-twemoji-graphics.txt',
 ];
 
 self.addEventListener('install', event => {

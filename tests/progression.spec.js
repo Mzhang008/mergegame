@@ -20,8 +20,11 @@ test('restoring a step: fill the spots, pay, Hana speaks, the village changes', 
   expect(s.coins).toBe(50);
   await expect(page.locator('#step-name')).toHaveText('Light the lanterns');
   await expect(page.locator('#dialogue-text')).toContainText('shrine bells');
+  await expect(page.locator('#hana-face')).toHaveAttribute('src', 'art/hana-moved.png');
+  await page.locator('#dialogue-next').click();
+  await expect(page.locator('#hana-face')).toHaveAttribute('src', 'art/hana.png');
   await dismissDialogue(page);
-  await expect(page.locator('#village-scene')).toHaveAttribute('src', 'art/village-2.svg');
+  await expect(page.locator('#village-scene')).toHaveAttribute('src', 'art/village-2.webp');
 });
 
 test('a spot only accepts the exact item it shows', async ({ page }) => {

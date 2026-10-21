@@ -16,16 +16,15 @@
 <meta property="og:title" content="Sakura Merge">
 <meta property="og:description" content="Restore a hidden spirit village, one merge at a time. Free, no ads, plays offline.">
 <meta property="og:url" content="https://mzhang008.github.io/mergegame/">
-<meta property="og:image" content="https://mzhang008.github.io/mergegame/og-image.png">
+<meta property="og:image" content="https://mzhang008.github.io/mergegame/og-image.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Sakura Merge app icon beside a row of pixel-art items: petals, bonsai, onigiri, bento and tea">
+<meta property="og:image:alt" content="Sakura Merge: a pixel-art spirit village with a red torii gate, glowing stone lanterns and a sakura tree in full bloom">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="art/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="stylesheet" href="style.css">
-<script defer src="lib/twemoji.min.js"></script>
 </head>
 <body>
 <div class="app" id="app">
@@ -72,7 +71,7 @@
     </div>
 
     <div class="card rest-card" id="restoration">
-      <div class="rest-art" id="village-art"><img id="village-scene" src="art/village-0.svg" alt="" draggable="false"></div>
+      <div class="rest-art" id="village-art"><img id="village-scene" src="art/village-0.webp" alt="" draggable="false"></div>
       <div class="rest-overlay">
         <div class="card-head">
           <span class="card-label">Village <span id="step-num">1</span>/<span id="step-total">5</span></span>
@@ -132,7 +131,7 @@
       <p class="sheet-note">Forge the final item of each chain to collect its sticker.</p>
       <div class="album-grid" id="album-slots"></div>
       <h2>The Village</h2>
-      <img class="village-large" id="village-large" src="art/village-0.svg" alt="The spirit village" draggable="false">
+      <img class="village-large" id="village-large" src="art/village-0.webp" width="1200" height="670" alt="The spirit village" draggable="false">
       <p class="sheet-note" id="village-caption"></p>
     </section>
 
@@ -159,7 +158,7 @@
 
 <div class="splash" id="splash">
   <div class="splash-inner">
-    <img class="splash-logo" src="art/icon.svg" alt="" draggable="false">
+    <img class="splash-logo" src="icons/icon-512.png" alt="" draggable="false">
     <h1 class="splash-title">Sakura Merge</h1>
     <div class="splash-sub">a hidden village awaits</div>
     <div class="splash-hint">Tap to begin</div>
@@ -168,18 +167,18 @@
 
 <div class="dialogue-overlay hidden" id="dialogue">
   <div class="dialogue-bubble">
-    <div class="dialogue-portrait"><img src="art/hana.svg" alt="Hana" draggable="false"></div>
+    <div class="dialogue-portrait portrait-hana"><img id="hana-face" src="art/hana.png" width="36" height="45" alt="Hana" draggable="false"></div>
     <div class="dialogue-body">
       <div class="dialogue-name">Hana</div>
       <div class="dialogue-text" id="dialogue-text"></div>
-      <button class="dialogue-next" id="dialogue-next">Continue ▶</button>
+      <button class="dialogue-next" id="dialogue-next">Continue</button>
     </div>
   </div>
 </div>
 
 <div class="dialogue-overlay hidden" id="blessing">
   <div class="dialogue-bubble">
-    <div class="dialogue-portrait"><img src="art/torii.svg" alt="Torii gate" draggable="false"></div>
+    <div class="dialogue-portrait"><img src="art/torii.png" width="41" height="39" alt="Torii gate" draggable="false"></div>
     <div class="dialogue-body">
       <div class="dialogue-name">Daily Blessing · Day <span id="blessing-day">1</span>/7</div>
       <div class="dialogue-text" id="blessing-text"></div>

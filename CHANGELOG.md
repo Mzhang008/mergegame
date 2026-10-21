@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.1.0 — 2026-10-21
+
+All of the game's art is now pixel art, matching the item icons.
+
+**Art**
+- Pixel-art village scenes for all six restoration stages, from overgrown mist to the
+  Spirit Tree in bloom. They still crossfade as the village heals.
+- Hana is pixel art too, with joyful and moved expressions that change with her lines.
+- Pixel-art interface icons (energy, coins, petals, sparkle, gift, torii) and a Tanabata
+  bamboo replace the Twemoji emoji, so the game now ships no third-party code.
+- New app icon, browser-tab icon and link-preview image.
+- Petal Rain and the splash screen drop the Sakura Petal item instead of an emoji.
+
+**Polish**
+- The restoration card shows its scene in full colour, with a readable title and a solid
+  Restore button even while it's disabled.
+
+**Behind the scenes**
+- `tools/process_art.py` rebuilds all of this art from `art-source/`, and
+  `tools/make_og.js` renders the link preview.
+- 43 end-to-end tests, now also checking that every image loads undistorted and that the
+  service worker's version matches the game's.
+
 ## 1.0.0 — 2026-10-20
 
 First public release.

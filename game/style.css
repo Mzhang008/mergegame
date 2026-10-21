@@ -259,9 +259,12 @@ button { font-family: inherit; color: inherit; }
   padding: 7px 9px 8px;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.6) 46%, rgba(255, 255, 255, 0.9) 100%);
+  /* Light behind the title; the scene shows in full colour below it. */
+  background: linear-gradient(180deg, rgba(255, 250, 252, 0.94) 0%, rgba(255, 250, 252, 0.72) 32%, rgba(255, 250, 252, 0) 60%);
 }
 .rest-card .card-label { color: #c08a1e; }
+.rest-card .card-label,
+.rest-name { text-shadow: 0 0 2px #fff, 0 0 5px rgba(255, 255, 255, 0.9); }
 .rest-name {
   font-size: 13px;
   font-weight: 700;
@@ -280,10 +283,9 @@ button { font-family: inherit; color: inherit; }
 }
 .tanabata-flank {
   position: absolute;
-  top: 5px;
-  right: 7px;
-  font-size: 14px;
-  line-height: 1;
+  top: 4px;
+  right: 6px;
+  height: 40px;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
   z-index: 1;
 }
@@ -336,11 +338,24 @@ button { font-family: inherit; color: inherit; }
   flex-shrink: 0;
 }
 .rest-complete:active:not(:disabled) { transform: scale(0.96); }
-.rest-complete:disabled { cursor: default; opacity: 0.5; }
+/* Solid rather than see-through, so it stays readable over the scene. */
+.rest-complete:disabled {
+  cursor: default;
+  background: rgba(255, 251, 242, 0.92);
+  color: #c4a467;
+  box-shadow: inset 0 0 0 1.5px rgba(212, 155, 28, 0.35);
+}
 .rest-cost { font-size: 13px; }
 .rest-action { font-size: 8.5px; letter-spacing: 0.5px; text-transform: uppercase; }
 .rest-card.done .rest-name { white-space: normal; }
-.epilogue-note { font-size: 11px; color: var(--text-muted); line-height: 1.35; }
+.epilogue-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  padding: 3px 7px;
+}
 
 /* ---- Board: largest board of the right shape that fits the space ---- */
 .board-wrap {
@@ -503,7 +518,7 @@ img.item-art {
 }
 .sell-zone b { font-weight: 800; }
 .sell-icon { font-size: 22px; line-height: 1; }
-.sell-icon img.emoji { display: block; }
+.sell-icon img.icon { display: block; }
 .sell-zone.drop-hover {
   transform: scale(1.04);
   background: #ffefc2;
@@ -709,6 +724,7 @@ img.item-art {
 }
 .village-large {
   width: 100%;
+  height: auto;
   display: block;
   border-radius: 14px;
   box-shadow: var(--shadow);
@@ -858,8 +874,11 @@ body.low-energy .chip-energy .chip-val {
   position: fixed;
   top: -5vh;
   z-index: 5;
+  height: auto;
   pointer-events: none;
-  opacity: 0.75;
+  user-select: none;
+  -webkit-user-drag: none;
+  opacity: 0.8;
   animation: petal-fall linear infinite;
 }
 @keyframes petal-fall {
@@ -867,19 +886,20 @@ body.low-energy .chip-energy .chip-val {
   100% { transform: translateY(115vh) translateX(40px) rotate(340deg); }
 }
 
-/* ---- Twemoji-injected <img> elements size from the inherited font-size ---- */
-img.emoji {
-  height: 1em;
-  width: 1em;
-  vertical-align: -0.12em;
+/* ---- Pixel-art icons that renderIcons() puts in place of emoji; they size
+   from the inherited font-size ---- */
+img.icon {
+  height: 1.15em;
+  width: auto;
+  vertical-align: -0.22em;
   margin: 0;
   display: inline-block;
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
 }
-.chip-icon img.emoji,
-.event-emoji img.emoji { display: block; margin: 0 auto; }
+.chip-icon img.icon,
+.event-emoji img.icon { display: block; margin: 0 auto; }
 
 /* ---- Drag ghost: positioned purely via transform, eased per-frame in JS ---- */
 .drag-ghost {
@@ -1016,7 +1036,10 @@ img.emoji {
   border: 3px solid var(--accent);
   box-shadow: 0 2px 10px rgba(217, 97, 138, 0.4);
 }
-.dialogue-portrait img { width: 46px; height: 46px; display: block; -webkit-user-drag: none; }
+/* Portraits are drawn at this size: one art pixel per CSS pixel, scaled up
+   by whole device pixels so they stay crisp. */
+.dialogue-portrait img { display: block; image-rendering: pixelated; -webkit-user-drag: none; }
+.portrait-hana { align-items: flex-end; overflow: hidden; }
 .dialogue-body { flex: 1; min-width: 0; }
 .dialogue-name {
   font-size: 11px;
@@ -1042,6 +1065,14 @@ img.emoji {
   transition: transform 0.1s, background 0.15s;
 }
 .dialogue-next:active { transform: scale(0.96); background: var(--accent-dark); }
+#dialogue-next::after {
+  content: '';
+  display: inline-block;
+  margin-left: 7px;
+  border-left: 6px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
 
 /* ---- Respect reduced-motion preferences: keep transitions, drop the loops ---- */
 @media (prefers-reduced-motion: reduce) {

@@ -5,7 +5,7 @@ const { test, expect } = require('@playwright/test');
 const { enterGame } = require('./helpers');
 
 const GAME_DIR = path.join(__dirname, '..', 'game');
-const NOT_PRECACHED = ['sw.js', 'og-image.png'];
+const NOT_PRECACHED = ['sw.js', 'og-image.jpg'];
 
 function shippedFiles(dir = GAME_DIR) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory()
@@ -13,16 +13,22 @@ function shippedFiles(dir = GAME_DIR) {
     : [path.relative(GAME_DIR, path.join(dir, e.name)).split(path.sep).join('/')]);
 }
 
-function precacheList() {
+function serviceWorker() {
   const src = fs.readFileSync(path.join(GAME_DIR, 'sw.js'), 'utf8');
   const self = { addEventListener() {}, location: { origin: '' } };
-  return new Function('self', `${src}; return PRECACHE;`)(self);
+  return new Function('self', `${src}; return { PRECACHE, VERSION };`)(self);
 }
 
 test('the service worker precaches exactly the shipped files', () => {
-  const listed = precacheList().filter(p => p !== './').sort();
+  const listed = serviceWorker().PRECACHE.filter(p => p !== './').sort();
   const shipped = shippedFiles().filter(f => !NOT_PRECACHED.includes(f)).sort();
   expect(listed).toEqual(shipped);
+});
+
+// A release that forgets sw.js would leave players on the old cached files.
+test('the service worker version matches the game version', () => {
+  const game = fs.readFileSync(path.join(GAME_DIR, 'game.js'), 'utf8');
+  expect(serviceWorker().VERSION).toBe(game.match(/version: '([^']+)'/)[1]);
 });
 
 test('the manifest and every icon it lists load', async ({ request }) => {
@@ -33,7 +39,7 @@ test('the manifest and every icon it lists load', async ({ request }) => {
   expect(manifest.display).toBe('standalone');
   expect(manifest.icons.some(i => i.purpose === 'maskable')).toBe(true);
   for (const icon of manifest.icons) expect((await request.get(icon.src)).ok()).toBe(true);
-  expect((await request.get('og-image.png')).ok()).toBe(true);
+  expect((await request.get('og-image.jpg')).ok()).toBe(true);
 });
 
 test.describe('offline', () => {
